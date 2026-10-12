@@ -1,4 +1,16 @@
-import type { NotificationKind, TripKind } from '../../generated/prisma/client.js';
+import type { ActionKind, NotificationKind, TripKind } from '../../generated/prisma/client.js';
+
+/** Copy for actions whose notification kind alone does not say what happened; null for the rest. */
+export function actionNotificationText(action: ActionKind, studentName: string): { title: string; body: string } | null {
+  switch (action) {
+    case 'UNDO_STOP':
+      return { title: 'تصحيح من السائق', body: `صحّح السائق حالة ${studentName}: الإشعار السابق سُجّل بالخطأ، وما زال بانتظار الحافلة.` };
+    case 'EMERGENCY_RESOLVED':
+      return { title: 'انتهت الحالة الطارئة', body: 'أبلغ السائق بانتهاء الحالة الطارئة واستئناف الرحلة.' };
+    default:
+      return null;
+  }
+}
 
 /** Arabic copy for the notifications guardians receive as a trip progresses. */
 export function tripNotificationText(

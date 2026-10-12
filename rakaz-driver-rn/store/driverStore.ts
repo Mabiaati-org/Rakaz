@@ -423,7 +423,8 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
       undo(studentId) {
         mutateRecord(studentId, () => emptyStopRecord());
         notifyHaptic('WARNING');
-        persist();
+        // The guardian and the dashboard already saw the action, so the correction must reach them too.
+        record(ActionKind.UNDO_STOP, studentId);
       },
 
       arriveSchool() {
@@ -468,6 +469,7 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
       resolveEmergency() {
         notifyHaptic('SUCCESS');
         update((s) => ({ ...s, emergencyActive: false }));
+        record(ActionKind.EMERGENCY_RESOLVED, null, stamp(currentPosition(get())).coord);
       },
 
       moveStop(from, to) {

@@ -202,6 +202,8 @@ export enum ActionKind {
   END_TRIP = 'END_TRIP',
   EMERGENCY = 'EMERGENCY',
   REORDER_STOPS = 'REORDER_STOPS',
+  UNDO_STOP = 'UNDO_STOP',
+  EMERGENCY_RESOLVED = 'EMERGENCY_RESOLVED',
 }
 
 export const ActionKindTitle: Record<ActionKind, string> = {
@@ -215,6 +217,8 @@ export const ActionKindTitle: Record<ActionKind, string> = {
   [ActionKind.END_TRIP]: 'إنهاء الرحلة',
   [ActionKind.EMERGENCY]: 'بلاغ طوارئ',
   [ActionKind.REORDER_STOPS]: 'تعديل ترتيب المحطات',
+  [ActionKind.UNDO_STOP]: 'تراجع عن إجراء',
+  [ActionKind.EMERGENCY_RESOLVED]: 'انتهاء الطوارئ',
 };
 
 /** An offline-first event, queued locally and flushed to the server when connectivity returns. */

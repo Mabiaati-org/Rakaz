@@ -17,7 +17,10 @@ export declare enum RakazActionKind {
     DROPPED_OFF = "DROPPED_OFF",
     END_TRIP = "END_TRIP",
     EMERGENCY = "EMERGENCY",
-    REORDER_STOPS = "REORDER_STOPS"
+    REORDER_STOPS = "REORDER_STOPS",
+    /** The driver took back a mistaken arrival / pick-up / drop-off / absence for one student. */
+    UNDO_STOP = "UNDO_STOP",
+    EMERGENCY_RESOLVED = "EMERGENCY_RESOLVED"
 }
 export type RakazTripKind = 'morning' | 'afternoon';
 /**

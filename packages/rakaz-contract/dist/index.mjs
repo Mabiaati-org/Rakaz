@@ -50,6 +50,8 @@ var RakazActionKind = /* @__PURE__ */ ((RakazActionKind2) => {
   RakazActionKind2["END_TRIP"] = "END_TRIP";
   RakazActionKind2["EMERGENCY"] = "EMERGENCY";
   RakazActionKind2["REORDER_STOPS"] = "REORDER_STOPS";
+  RakazActionKind2["UNDO_STOP"] = "UNDO_STOP";
+  RakazActionKind2["EMERGENCY_RESOLVED"] = "EMERGENCY_RESOLVED";
   return RakazActionKind2;
 })(RakazActionKind || {});
 
@@ -109,6 +111,9 @@ function notificationForAction(action, tripKind) {
       return "admin";
     case "EMERGENCY" /* EMERGENCY */:
       return "delay";
+    case "UNDO_STOP" /* UNDO_STOP */:
+    case "EMERGENCY_RESOLVED" /* EMERGENCY_RESOLVED */:
+      return "admin";
     case "END_TRIP" /* END_TRIP */:
     case "REORDER_STOPS" /* REORDER_STOPS */:
       return null;

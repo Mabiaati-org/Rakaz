@@ -81,6 +81,9 @@ export function notificationForAction(
       return 'admin';
     case RakazActionKind.EMERGENCY:
       return 'delay';
+    case RakazActionKind.UNDO_STOP:
+    case RakazActionKind.EMERGENCY_RESOLVED:
+      return 'admin';
     case RakazActionKind.END_TRIP:
     case RakazActionKind.REORDER_STOPS:
       return null;

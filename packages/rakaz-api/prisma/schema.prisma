@@ -50,6 +50,8 @@ enum ActionKind {
   END_TRIP
   EMERGENCY
   REORDER_STOPS
+  UNDO_STOP
+  EMERGENCY_RESOLVED
 }
 
 enum AbsenceScope {

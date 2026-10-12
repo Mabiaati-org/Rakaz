@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import type { RakazAdminSchoolInput } from '@rakaz/contract';
 
+import { MapPicker } from '@/components/maps';
 import { DataState, Field, Notice, PageHead } from '@/components/ui';
 import { useAction, useAsyncData } from '@/hooks/useAsyncData';
 import { adminApi } from '@/services/adminApi';
@@ -65,6 +66,9 @@ export function SchoolsPage() {
           </Field>
           <Field label="خط الطول">
             <input dir="ltr" type="number" step="any" value={draft.coordinate.longitude} onChange={(e) => set('coordinate', { ...draft.coordinate, longitude: Number(e.target.value) })} />
+          </Field>
+          <Field label="الموقع على الخريطة — اضغط لتحديد بوابة المدرسة" wide>
+            <MapPicker value={draft.coordinate} onChange={(coordinate) => set('coordinate', coordinate)} />
           </Field>
           <Field label="بداية الدوام">
             <input type="time" value={draft.startTime} onChange={(e) => set('startTime', e.target.value)} />

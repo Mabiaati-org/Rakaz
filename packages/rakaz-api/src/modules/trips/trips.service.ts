@@ -26,7 +26,7 @@ import { Prisma, type StopStatus, type TripKind } from '../../generated/prisma/c
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { type NotificationInput, NotificationsService } from '../notifications/notifications.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
-import { tripNotificationText } from './trip-texts.js';
+import { actionNotificationText, tripNotificationText } from './trip-texts.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -42,8 +42,8 @@ type StudentRef = { guardianId: string | null; firstName: string; code: string }
 
 interface StudentPatch {
   status: StopStatus;
-  arrivedAt?: Date;
-  completedAt?: Date;
+  arrivedAt?: Date | null;
+  completedAt?: Date | null;
   note?: string;
   handoverPending?: boolean;
 }
@@ -345,7 +345,8 @@ export class TripsService implements OnModuleInit, OnModuleDestroy {
           userIds: [row.student.guardianId],
           input: {
             kind: dbNotificationKind,
-            ...tripNotificationText(dbNotificationKind, row.student.firstName, kind),
+            ...(actionNotificationText(input.action, row.student.firstName) ??
+              tripNotificationText(dbNotificationKind, row.student.firstName, kind)),
             studentCode: row.student.code,
             tripCode: trip.code,
           },
@@ -466,6 +467,28 @@ export class TripsService implements OnModuleInit, OnModuleDestroy {
 
       case 'REORDER_STOPS':
         await this.reorderStops(tx, route.id, input.detail);
+        break;
+
+      case 'UNDO_STOP':
+        // Only tell the guardian when something they were told is being taken back.
+        if (student && ownStatus && ownStatus !== 'PENDING') {
+          await setStudent({ status: 'PENDING', arrivedAt: null, completedAt: null, note: '', handoverPending: false });
+          notifyGuardians(own);
+        }
+        break;
+
+      case 'EMERGENCY_RESOLVED':
+        notifyGuardians(riders);
+        outbox.push({
+          userIds: [],
+          admins: true,
+          input: {
+            kind: 'ADMIN',
+            title: `انتهت الحالة الطارئة — ${route.name}`,
+            body: `${driver.name} (${vehicleLabel ?? route.code}) أبلغ بانتهاء الحالة الطارئة واستئناف الرحلة.`,
+            tripCode: trip.code,
+          },
+        });
         break;
     }
 

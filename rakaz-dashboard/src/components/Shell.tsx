@@ -1,10 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
 import { useAuth } from '@/auth/AuthContext';
+import { useAlerts } from '@/hooks/useAlerts';
 
 const links = [
   { to: '/', label: 'نظرة عامة', end: true },
-  { to: '/trips', label: 'الرحلات الحية' },
+  { to: '/alerts', label: 'التنبيهات' },
+  { to: '/trips', label: 'الرحلات' },
   { to: '/students', label: 'الطلاب' },
   { to: '/guardians', label: 'أولياء الأمور' },
   { to: '/drivers', label: 'السائقون' },
@@ -18,6 +20,7 @@ const links = [
 
 export function Shell() {
   const { user, logout } = useAuth();
+  const { unread } = useAlerts();
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -29,6 +32,7 @@ export function Shell() {
           {links.map((link) => (
             <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => (isActive ? 'active' : undefined)}>
               {link.label}
+              {link.to === '/alerts' && unread > 0 ? <span className="nav-count">{unread}</span> : null}
             </NavLink>
           ))}
         </nav>

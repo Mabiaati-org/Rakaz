@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { Shell } from '@/components/Shell';
 import { AbsencesPage } from '@/pages/Absences';
 import { AccountPage } from '@/pages/Account';
+import { AlertsPage } from '@/pages/Alerts';
 import { DriversPage } from '@/pages/Drivers';
 import { FinancePage } from '@/pages/Finance';
 import { GuardiansPage } from '@/pages/Guardians';
@@ -27,6 +28,7 @@ function AppRoutes() {
     <Routes>
       <Route element={<Shell />}>
         <Route index element={<OverviewPage />} />
+        <Route path="alerts" element={<AlertsPage />} />
         <Route path="trips" element={<LiveTripsPage />} />
         <Route path="students" element={<StudentsPage />} />
         <Route path="guardians" element={<GuardiansPage />} />

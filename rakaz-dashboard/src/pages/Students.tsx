@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { formatIraqiPhoneLocal, type RakazAdminStudent, type RakazAdminStudentInput, type RakazIssuedCredentials } from '@rakaz/contract';
 
+import { MapPicker } from '@/components/maps';
 import { CredentialsDialog, DataState, Field, Notice, PageHead } from '@/components/ui';
 import { useAction, useAsyncData } from '@/hooks/useAsyncData';
 import { adminApi } from '@/services/adminApi';
@@ -141,6 +142,9 @@ export function StudentsPage() {
           </Field>
           <Field label="خط طول المنزل">
             <input dir="ltr" type="number" step="any" value={draft.home.longitude} onChange={(e) => set('home', { ...draft.home, longitude: Number(e.target.value) })} />
+          </Field>
+          <Field label="موقع المنزل على الخريطة — اضغط لتحديد نقطة الاستلام" wide>
+            <MapPicker value={draft.home} onChange={(home) => set('home', home)} />
           </Field>
           <Field label="ملاحظات للسائق" wide>
             <input value={draft.notes} onChange={(e) => set('notes', e.target.value)} />

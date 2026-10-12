@@ -337,6 +337,19 @@ describe('Rakaz API (e2e)', () => {
       expect((inboxB.body.data as RakazParentNotification[]).map((n) => n.kind)).not.toContain('pickedUp');
     });
 
+    it('takes back a mistaken stop action for everyone who saw it', async () => {
+      await http().post(P.driver.events).set(auth(driverToken)).send({ events: [event('UNDO_STOP', 'morning', studentA)] }).expect(200);
+      const undone = await todayTrips(guardianAToken, studentA);
+      expect(undone.morning).toMatchObject({ status: 2, studentStatus: 'pending' });
+      expect(undone.morning.timeline.map((t) => t.status)).toEqual([2]);
+
+      const inbox = await http().get(P.notifications.list).set(auth(guardianAToken)).expect(200);
+      expect((inbox.body.data as RakazParentNotification[])[0]).toMatchObject({ kind: 'admin', title: 'تصحيح من السائق' });
+
+      await http().post(P.driver.events).set(auth(driverToken)).send({ events: [event('PICKED_UP', 'morning', studentA)] }).expect(200);
+      expect((await todayTrips(guardianAToken, studentA)).morning.studentStatus).toBe('pickedUp');
+    });
+
     it('moves the live marker from location pings', async () => {
       await http()
         .post(P.driver.location)
