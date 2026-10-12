@@ -110,6 +110,8 @@ describe('Rakaz API (e2e)', () => {
       prisma.payment.deleteMany(),
       prisma.subscription.deleteMany(),
       prisma.handover.deleteMany(),
+      prisma.checkinPassenger.deleteMany(),
+      prisma.driverCheckin.deleteMany(),
       prisma.locationPing.deleteMany(),
       prisma.tripEvent.deleteMany(),
       prisma.tripStudent.deleteMany(),
@@ -370,6 +372,35 @@ describe('Rakaz API (e2e)', () => {
       ]);
       const overview = await http().get(P.admin.overview).set(auth(adminToken)).expect(200);
       expect(overview.body.data).toMatchObject({ activeTrips: 1, studentsOnBoard: 1 });
+    });
+
+    it('records a check-in with the exact position and who is on board, only on duty and only for drivers', async () => {
+      const position = { latitude: 30.515612345678, longitude: 47.812598765432, accuracy: 6.5 };
+      const weekdayInBaghdad = new Date(Date.now() + 3 * 3_600_000).getUTCDay();
+      const allWeek = { startTime: '00:00', endTime: '23:59', days: [0, 1, 2, 3, 4, 5, 6] };
+
+      await http().put(P.admin.workSchedule).set(auth(adminToken)).send(allWeek).expect(200);
+
+      await http().post(P.driver.checkins).send(position).expect(401);
+      await http().post(P.driver.checkins).set(auth(guardianAToken)).send(position).expect(403);
+      await http().post(P.driver.checkins).set(auth(adminToken)).send(position).expect(403);
+
+      const ok = await http().post(P.driver.checkins).set(auth(driverToken)).send(position).expect(201);
+      // The coordinates come back exactly as sent, with nothing rounded off.
+      expect(ok.body.data).toMatchObject({ latitude: 30.515612345678, longitude: 47.812598765432, accuracy: 6.5 });
+      expect(ok.body.data.passengers).toEqual([{ studentId: studentA, name: 'لبان أحمد' }]);
+      expect(ok.body.data.nextCheckinAt - ok.body.data.at).toBe(300_000);
+
+      const listed = await http().get(P.admin.checkins).set(auth(adminToken)).expect(200);
+      expect(listed.body.data[0]).toMatchObject({ id: ok.body.data.id, driverName: 'سائق الاختبار', routeId: 'R-1' });
+
+      // Off duty: every day except today.
+      const offDuty = { ...allWeek, days: allWeek.days.filter((d) => d !== weekdayInBaghdad) };
+      await http().put(P.admin.workSchedule).set(auth(adminToken)).send(offDuty).expect(200);
+      const refused = await http().post(P.driver.checkins).set(auth(driverToken)).send(position).expect(422);
+      expect(refused.body).toMatchObject({ success: false, statusCode: 422, code: 'OUTSIDE_WORKING_HOURS' });
+
+      await http().put(P.admin.workSchedule).set(auth(adminToken)).send(allWeek).expect(200);
     });
 
     it('finishes the morning and runs the return trip with a handover', async () => {

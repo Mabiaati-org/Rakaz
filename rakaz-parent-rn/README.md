@@ -27,7 +27,8 @@ npx eas-cli submit --profile production --platform all
 
 قبل البناء:
 - عدّل `EXPO_PUBLIC_RAKAZ_API_URL` في `eas.json` إلى عنوان الـ API الحقيقي (HTTPS).
-- أضف `GOOGLE_MAPS_API_KEY` و`EAS_PROJECT_ID` كمتغيرات بيئة في EAS.
+- أضف `EAS_PROJECT_ID` كمتغير بيئة في EAS.
+- الخرائط تعمل ببلاطات OpenStreetMap ولا تحتاج مفتاح Google.
 - للإشعارات: مفتاح APNs لـ iOS ومفتاح FCM V1 لأندرويد عبر `eas credentials`.
 
 المعرّف: `com.alsultan.rikaz` (iOS و Android). **لا يمكن تغييره بعد أول رفع للمتجر.**

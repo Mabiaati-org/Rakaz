@@ -26,7 +26,8 @@ npx eas-cli submit --profile production --platform all
 
 قبل البناء:
 - عدّل `EXPO_PUBLIC_RAKAZ_API_URL` في `eas.json` (profiles: `preview`, `production`) إلى عنوان الـ API الحقيقي (HTTPS).
-- أضف `GOOGLE_MAPS_API_KEY` و`EAS_PROJECT_ID` كمتغيرات بيئة في EAS (`eas env:create`).
+- أضف `EAS_PROJECT_ID` كمتغير بيئة في EAS (`eas env:create`).
+- الخرائط تعمل ببلاطات OpenStreetMap ولا تحتاج مفتاح Google. للأساطيل الكبيرة ضع `EXPO_PUBLIC_MAP_TILE_URL` لمزوّد بلاطات خاص.
 - للإشعارات على أندرويد ارفع مفتاح FCM V1 إلى EAS (`eas credentials`).
 
 المعرّف: `com.alsultan.rikaz.driver` (iOS و Android). **لا يمكن تغييره بعد أول رفع للمتجر.**
@@ -41,6 +42,12 @@ npx eas-cli submit --profile production --platform all
 عند الرفع للمتاجر ستحتاج:
 - **Google Play**: تعبئة نموذج Background location مع فيديو قصير يوضح الميزة.
 - **App Store**: توضيح سبب `UIBackgroundModes: location` في ملاحظات المراجعة.
+
+### تسجيل الموقع كل ٥ دقائق
+
+خلال وقت الدوام الذي تحدده الإدارة (لوحة الإدارة ← الإعدادات) يرسل التطبيق كل ٥ دقائق موقع السائق بدقته الكاملة
+إلى `POST /api/v1/driver/checkins`، ويسجّل السيرفر من معه في الباص في تلك اللحظة وعنوان الموقع من OpenStreetMap
+(`services/checkin.ts`). يعمل والتطبيق مفتوح طوال الدوام، وبالخلفية أثناء الرحلات. خارج الدوام يرد السيرفر بـ 422.
 
 ## القواعد
 
@@ -59,6 +66,7 @@ npx eas-cli submit --profile production --platform all
 | `services/api.ts` | عميل الـ API والجلسة |
 | `services/sync.ts` | رفع الأحداث وجلب الغياب |
 | `services/busTracking.ts` | مشاركة موقع الباص (واجهة + خلفية) |
+| `services/checkin.ts` | تسجيل الموقع ومن في الباص كل ٥ دقائق خلال الدوام |
 | `services/push.ts` | تسجيل الإشعارات الفورية |
 | `services/serverMapping.ts` | تحويل بيانات السيرفر إلى نماذج التطبيق |
 | `store/driverStore.ts` | حالة التطبيق وكل الإجراءات |

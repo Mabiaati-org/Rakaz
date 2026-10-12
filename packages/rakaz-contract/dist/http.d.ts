@@ -28,6 +28,7 @@ export declare const RakazHttpPaths: {
         readonly events: string;
         readonly location: string;
         readonly absencesToday: string;
+        readonly checkins: string;
     };
     readonly parent: {
         readonly bootstrap: string;
@@ -64,6 +65,8 @@ export declare const RakazHttpPaths: {
         readonly tickets: string;
         readonly ticket: (id: string) => string;
         readonly settings: string;
+        readonly workSchedule: string;
+        readonly checkins: string;
     };
 };
 export declare function resolveRakazApiUrl(explicit?: string | null): string;

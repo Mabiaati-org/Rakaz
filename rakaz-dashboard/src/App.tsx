@@ -5,6 +5,7 @@ import { Shell } from '@/components/Shell';
 import { AbsencesPage } from '@/pages/Absences';
 import { AccountPage } from '@/pages/Account';
 import { AlertsPage } from '@/pages/Alerts';
+import { CheckinsPage } from '@/pages/Checkins';
 import { DriversPage } from '@/pages/Drivers';
 import { FinancePage } from '@/pages/Finance';
 import { GuardiansPage } from '@/pages/Guardians';
@@ -30,6 +31,7 @@ function AppRoutes() {
         <Route index element={<OverviewPage />} />
         <Route path="alerts" element={<AlertsPage />} />
         <Route path="trips" element={<LiveTripsPage />} />
+        <Route path="checkins" element={<CheckinsPage />} />
         <Route path="students" element={<StudentsPage />} />
         <Route path="guardians" element={<GuardiansPage />} />
         <Route path="drivers" element={<DriversPage />} />

@@ -1,16 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import MapView, { type MapStyleElement, Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, UrlTile } from 'react-native-maps';
+
+import { AppText } from '@/components/AppText';
+import { MAP_ATTRIBUTION, MAP_TILE_URL } from '@/constants/map';
+import { Theme, withAlpha } from '@/constants/theme';
 
 import type { RakazMapProps } from '@/components/map/mapTypes';
-
-/** Google equivalent of MapKit's muted standard style without points of interest (ignored by Apple Maps). */
-const mutedStyle: MapStyleElement[] = [
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'geometry', stylers: [{ saturation: -60 }] },
-];
 
 export default function RakazMap({ region, markers = [], lines = [], interactive = false, onPanStart, onRegionChangeComplete, style }: RakazMapProps) {
   const mapRef = useRef<MapView>(null);
@@ -28,7 +24,8 @@ export default function RakazMap({ region, markers = [], lines = [], interactive
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegion}
-        customMapStyle={mutedStyle}
+        // Android: hide Google's base map and draw OpenStreetMap tiles over the empty canvas.
+        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
         showsPointsOfInterests={false}
         showsCompass={false}
         showsScale={false}
@@ -40,6 +37,7 @@ export default function RakazMap({ region, markers = [], lines = [], interactive
         onPanDrag={onPanStart}
         onRegionChangeComplete={(r) => onRegionChangeComplete?.(r)}
       >
+        <UrlTile urlTemplate={MAP_TILE_URL} maximumZ={19} shouldReplaceMapContent zIndex={-1} />
         {lines.map((l) => (
           <Polyline key={l.id} coordinates={l.coordinates} strokeColor={l.color} strokeWidth={l.width} lineDashPattern={l.dash} lineCap="round" lineJoin="round" />
         ))}
@@ -54,10 +52,23 @@ export default function RakazMap({ region, markers = [], lines = [], interactive
           </Marker>
         ))}
       </MapView>
+      <View pointerEvents="none" style={styles.attribution}>
+        <AppText size={9} color={Theme.muted}>
+          {MAP_ATTRIBUTION}
+        </AppText>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { overflow: 'hidden', backgroundColor: '#E8ECE6' },
+  attribution: {
+    position: 'absolute',
+    bottom: 2,
+    left: 4,
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    backgroundColor: withAlpha(Theme.white, 0.75),
+  },
 });

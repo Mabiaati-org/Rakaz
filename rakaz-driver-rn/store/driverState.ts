@@ -10,6 +10,7 @@ import {
   TripLeg,
   TripPhase,
   type TripState,
+  type WorkSchedule,
   distanceTo,
   emptyStopRecord,
   emptyTripState,
@@ -29,6 +30,7 @@ export interface DriverState {
   lastSyncAt: number | null;
   completedTripsTotal: number;
   mustChangePassword: boolean;
+  workSchedule: WorkSchedule | null;
   networkConnected: boolean;
   isSyncing: boolean;
   isChecking: boolean;
@@ -46,6 +48,7 @@ export function initialDriverState(route: Route): DriverState {
     lastSyncAt: null,
     completedTripsTotal: 0,
     mustChangePassword: false,
+    workSchedule: null,
     networkConnected: true,
     isSyncing: false,
     isChecking: false,

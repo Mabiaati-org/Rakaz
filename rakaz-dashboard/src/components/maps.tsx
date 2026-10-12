@@ -49,6 +49,8 @@ export interface FleetBus {
   label: string;
   position: RakazGeoPoint;
   moving: boolean;
+  /** Draws the marker in gold, to pick one point out of a trail. */
+  highlighted?: boolean;
 }
 
 function FitBuses({ buses }: { buses: FleetBus[] }) {
@@ -71,8 +73,13 @@ export function FleetMap({ buses }: { buses: FleetBus[] }) {
       <MapContainer center={toLatLng(buses[0]!.position)} zoom={13} scrollWheelZoom className="map-canvas">
         <TileLayer url={TILES} attribution={ATTRIBUTION} />
         {buses.map((bus) => (
-          <Marker key={bus.id} position={toLatLng(bus.position)} icon={pin(bus.moving ? 'bus moving' : 'bus', '🚌')}>
-            <Tooltip permanent direction="top" offset={[0, -14]}>
+          <Marker
+            key={bus.id}
+            position={toLatLng(bus.position)}
+            icon={pin(bus.highlighted ? 'pick' : bus.moving ? 'bus moving' : 'bus', '🚌')}
+            zIndexOffset={bus.highlighted ? 1000 : 0}
+          >
+            <Tooltip permanent={bus.highlighted !== false} direction="top" offset={[0, -14]}>
               {bus.label}
             </Tooltip>
           </Marker>

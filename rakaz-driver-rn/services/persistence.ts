@@ -26,6 +26,7 @@ function decode(raw: string): AppSnapshot | null {
     lastSyncAt: typeof parsed.lastSyncAt === 'number' ? parsed.lastSyncAt : null,
     completedTripsTotal: typeof parsed.completedTripsTotal === 'number' ? parsed.completedTripsTotal : 0,
     mustChangePassword: parsed.mustChangePassword === true,
+    workSchedule: isRecord(parsed.workSchedule) ? (parsed.workSchedule as unknown as AppSnapshot['workSchedule']) : null,
   };
 }
 

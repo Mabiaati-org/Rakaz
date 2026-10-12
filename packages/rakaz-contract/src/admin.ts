@@ -1,4 +1,5 @@
 import type { RakazAuthUser, RakazIssuedCredentials } from './auth';
+import type { RakazAdminCheckin, RakazWorkSchedule } from './checkin';
 import type {
   RakazAbsenceReport,
   RakazGeoPoint,
@@ -204,6 +205,11 @@ export interface RakazAdminApi {
 
   getSettings(): Promise<RakazSupportContact>;
   saveSettings(settings: RakazSupportContact): Promise<RakazSupportContact>;
+
+  getWorkSchedule(): Promise<RakazWorkSchedule>;
+  saveWorkSchedule(schedule: RakazWorkSchedule): Promise<RakazWorkSchedule>;
+  /** Driver check-ins of one day (default today), newest first. */
+  listCheckins(params?: { dateISO?: string; driverUid?: string }): Promise<RakazAdminCheckin[]>;
 }
 
 export type { RakazAuthUser };

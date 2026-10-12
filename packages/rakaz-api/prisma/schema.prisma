@@ -143,6 +143,7 @@ model User {
   deviceTokens  DeviceToken[]
   notifications Notification[]
   tickets       SupportTicket[]
+  checkins      DriverCheckin[]
 
   @@index([role, deletedAt])
 }
@@ -273,6 +274,7 @@ model Student {
   handovers     Handover[]
   subscriptions Subscription[]
   payments      Payment[]
+  checkins      CheckinPassenger[]
 
   @@index([schoolId])
   @@index([routeId])
@@ -368,6 +370,42 @@ model TripEvent {
 
   @@index([tripId, at])
   @@index([action, at])
+}
+
+/// Every five minutes on duty: exactly where the driver was and who was on the bus.
+model DriverCheckin {
+  id        String   @id @default(cuid())
+  driverId  String
+  routeId   String?
+  /// DOUBLE columns, so the coordinates keep the full precision the phone reported.
+  lat       Float
+  lng       Float
+  accuracy  Float?
+  /// Looked up from OpenStreetMap; null when the lookup failed.
+  address   String?  @db.VarChar(500)
+  at        DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  driver     User               @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  passengers CheckinPassenger[]
+
+  @@index([driverId, at])
+  @@index([at])
+}
+
+model CheckinPassenger {
+  id        String   @id @default(cuid())
+  checkinId String
+  studentId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  checkin DriverCheckin @relation(fields: [checkinId], references: [id], onDelete: Cascade)
+  student Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([checkinId, studentId])
+  @@index([studentId])
 }
 
 model LocationPing {

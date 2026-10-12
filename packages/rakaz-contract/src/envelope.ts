@@ -33,6 +33,7 @@ export type RakazErrorCode =
   | 'INVALID_CREDENTIALS'
   | 'ACCOUNT_DISABLED'
   | 'SESSION_EXPIRED'
-  | 'NO_ROUTE_ASSIGNED';
+  | 'NO_ROUTE_ASSIGNED'
+  | 'OUTSIDE_WORKING_HOURS';
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;

@@ -8,7 +8,9 @@ import {
   RakazHttpPaths,
   resolveRakazApiUrl,
   type RakazAbsenceReport,
+  type RakazCheckinInput,
   type RakazDriverBootstrap,
+  type RakazDriverCheckin,
   type RakazDriverEventInput,
   type RakazLocationPing,
   type RakazStoredTokens,
@@ -77,4 +79,5 @@ export const driverApi = {
   sendLocations: (pings: RakazLocationPing[]): Promise<{ stored: number }> =>
     client.request(P.location, 'POST', { pings }),
   absencesToday: (): Promise<RakazAbsenceReport[]> => client.request(P.absencesToday),
+  checkin: (input: RakazCheckinInput): Promise<RakazDriverCheckin> => client.request(P.checkins, 'POST', input),
 };

@@ -27,6 +27,21 @@ function tzOffsetMs(instant: number, timeZone: string): number {
   return asUtc - Math.floor(instant / 1000) * 1000;
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Weekday (0 = Sunday) and minutes since midnight of an instant in the given timezone. */
+export function localClock(instant: Date | number, timeZone: string): { weekday: number; minutesOfDay: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(new Date(instant));
+  const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? '';
+  return { weekday: WEEKDAYS.indexOf(get('weekday')), minutesOfDay: Number(get('hour')) * 60 + Number(get('minute')) };
+}
+
 /** Epoch ms of local midnight that starts `dateISO` in the given timezone. */
 export function startOfDayMs(dateISO: string, timeZone: string): number {
   const utcMidnight = dbDateFromISO(dateISO).getTime();

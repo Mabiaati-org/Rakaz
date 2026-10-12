@@ -1,3 +1,4 @@
+import type { RakazWorkSchedule } from './checkin';
 import type { RakazGeoPoint, RakazStopStatus, RakazTripKind } from './events';
 import type { CanonicalStudentId, RakazUid } from './ids';
 import type { RakazTripPhase } from './mapping';
@@ -73,5 +74,7 @@ export interface RakazDriverBootstrap {
         afternoon: RakazDriverTripState | null;
     };
     completedTripsTotal: number;
+    /** When the app should send its 5-minute check-ins. */
+    workSchedule: RakazWorkSchedule;
     serverTime: number;
 }

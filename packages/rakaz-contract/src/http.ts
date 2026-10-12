@@ -36,6 +36,7 @@ export const RakazHttpPaths = {
     events: p('/driver/events'),
     location: p('/driver/location'),
     absencesToday: p('/driver/absences/today'),
+    checkins: p('/driver/checkins'),
   },
 
   parent: {
@@ -74,6 +75,8 @@ export const RakazHttpPaths = {
     tickets: p('/admin/tickets'),
     ticket: (id: string) => p(`/admin/tickets/${enc(id)}`),
     settings: p('/admin/settings'),
+    workSchedule: p('/admin/work-schedule'),
+    checkins: p('/admin/checkins'),
   },
 } as const;
 

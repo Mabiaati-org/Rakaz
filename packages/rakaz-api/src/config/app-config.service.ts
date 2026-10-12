@@ -45,6 +45,12 @@ export class AppConfig {
   get swaggerEnabled(): boolean {
     return this.config.get('SWAGGER_ENABLED', { infer: true });
   }
+  get nominatimUrl(): string {
+    return this.config.get('OSM_NOMINATIM_URL', { infer: true }).replace(/\/$/, '');
+  }
+  get osmContactEmail(): string | undefined {
+    return this.config.get('OSM_CONTACT_EMAIL', { infer: true }) || undefined;
+  }
   get expoAccessToken(): string | undefined {
     return this.config.get('EXPO_ACCESS_TOKEN', { infer: true }) || undefined;
   }

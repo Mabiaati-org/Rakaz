@@ -645,3 +645,45 @@ a:focus-visible {
   gap: 12px;
   flex-wrap: wrap;
 }
+
+/* ---- Check-ins and work schedule ---- */
+
+.small {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+td.wrap {
+  white-space: normal;
+  min-width: 220px;
+  max-width: 360px;
+  line-height: 1.6;
+}
+
+.day-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fafbfa;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.day-chip.on {
+  background: var(--gold-soft);
+  border-color: var(--gold);
+}
+
+.day-chip input {
+  accent-color: var(--gold);
+}

@@ -23,6 +23,9 @@ export class ApiError extends HttpException {
   static notFound(message = 'العنصر المطلوب غير موجود'): ApiError {
     return new ApiError(HttpStatus.NOT_FOUND, message);
   }
+  static unprocessable(message: string, code?: RakazErrorCode): ApiError {
+    return new ApiError(HttpStatus.UNPROCESSABLE_ENTITY, message, { code });
+  }
   static conflict(message: string, code?: RakazErrorCode): ApiError {
     return new ApiError(HttpStatus.CONFLICT, message, { code });
   }

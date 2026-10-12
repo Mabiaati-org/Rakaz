@@ -7,6 +7,7 @@ const links = [
   { to: '/', label: 'نظرة عامة', end: true },
   { to: '/alerts', label: 'التنبيهات' },
   { to: '/trips', label: 'الرحلات' },
+  { to: '/checkins', label: 'مواقع السائقين' },
   { to: '/students', label: 'الطلاب' },
   { to: '/guardians', label: 'أولياء الأمور' },
   { to: '/drivers', label: 'السائقون' },

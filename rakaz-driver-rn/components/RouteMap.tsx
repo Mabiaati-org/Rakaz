@@ -1,28 +1,15 @@
 import { Landmark, Navigation2 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, Polyline, type MapStyleElement } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, Polyline, UrlTile } from 'react-native-maps';
 
+import { MAP_ATTRIBUTION, MAP_TILE_URL } from '@/constants/map';
 import { Rakaz, withAlpha } from '@/constants/theme';
 import { useDriverStore } from '@/store/driverStore';
 import { ArabicFormat } from '@/utils/arabicFormat';
 
 import { AppText } from './AppText';
 import { type RouteMapProps, buildRouteMapModel, regionFor } from './routeMapModel';
-
-/** Muted Google style so the gold route and pins stand out (ignored by Apple Maps). */
-const mutedStyle: MapStyleElement[] = [
-  { elementType: 'geometry', stylers: [{ color: Rakaz.MapLand }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: Rakaz.InkSecondary }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: Rakaz.White }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ visibility: 'on' }, { color: '#D5E5D2' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: Rakaz.White }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#BFD7DF' }] },
-];
 
 function BusMarker({ heading }: { heading: number }) {
   const pulse = useRef(new Animated.Value(0)).current;
@@ -72,7 +59,8 @@ export default function RouteMap({ focus = null, zoom = 1, interactive = false, 
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegion}
-        customMapStyle={mutedStyle}
+        // Android: hide Google's base map and draw OpenStreetMap tiles over the empty canvas.
+        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
         scrollEnabled={interactive}
         zoomEnabled={interactive}
         rotateEnabled={false}
@@ -83,6 +71,7 @@ export default function RouteMap({ focus = null, zoom = 1, interactive = false, 
         showsUserLocation={false}
         moveOnMarkerPress={false}
       >
+        <UrlTile urlTemplate={MAP_TILE_URL} maximumZ={19} shouldReplaceMapContent zIndex={-1} />
         {model.path.length > 1 ? (
           <>
             <Polyline coordinates={model.path} strokeColor={withAlpha(Rakaz.Navy, 0.18)} strokeWidth={11} lineCap="round" lineJoin="round" zIndex={1} />
@@ -118,6 +107,11 @@ export default function RouteMap({ focus = null, zoom = 1, interactive = false, 
           <BusMarker heading={model.heading} />
         </Marker>
       </MapView>
+      <View pointerEvents="none" style={styles.attribution}>
+        <AppText variant="labelSmall" color={Rakaz.InkSecondary} style={styles.attributionText}>
+          {MAP_ATTRIBUTION}
+        </AppText>
+      </View>
     </View>
   );
 }
@@ -134,6 +128,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  attribution: {
+    position: 'absolute',
+    bottom: 2,
+    left: 4,
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    backgroundColor: withAlpha(Rakaz.White, 0.75),
+  },
+  attributionText: { fontSize: 9, lineHeight: 12 },
   pin: { borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   pinText: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
   busWrap: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },

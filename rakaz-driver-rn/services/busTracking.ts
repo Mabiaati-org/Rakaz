@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import type { RakazLocationPing, RakazTripKind } from '@rakaz/contract';
 
 import { driverApi } from '@/services/api';
+import { Checkins } from '@/services/checkin';
 
 const TASK = 'rakaz-bus-tracking';
 const KIND_KEY = 'rakaz.driver.trackingKind';
@@ -50,6 +51,15 @@ if (Platform.OS !== 'web') {
         heading: l.coords.heading,
       })),
     );
+    // The same wake-up keeps the five-minute check-in going while the screen is off.
+    const latest = data.locations[data.locations.length - 1];
+    if (latest) {
+      await Checkins.fromBackground({
+        latitude: latest.coords.latitude,
+        longitude: latest.coords.longitude,
+        accuracy: latest.coords.accuracy,
+      });
+    }
   });
 }
 

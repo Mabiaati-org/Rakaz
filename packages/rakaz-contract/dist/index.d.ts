@@ -6,6 +6,7 @@ export * from './events';
 export * from './mapping';
 export * from './repositories';
 export * from './finance';
+export * from './checkin';
 export * from './driver';
 export * from './parent';
 export * from './admin';

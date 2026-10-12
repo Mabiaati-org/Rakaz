@@ -24,5 +24,5 @@ export interface ApiFailure {
     /** Machine-readable reason, when the client must react to it (see `RakazErrorCode`). */
     code?: RakazErrorCode;
 }
-export type RakazErrorCode = 'PASSWORD_CHANGE_REQUIRED' | 'INVALID_CREDENTIALS' | 'ACCOUNT_DISABLED' | 'SESSION_EXPIRED' | 'NO_ROUTE_ASSIGNED';
+export type RakazErrorCode = 'PASSWORD_CHANGE_REQUIRED' | 'INVALID_CREDENTIALS' | 'ACCOUNT_DISABLED' | 'SESSION_EXPIRED' | 'NO_ROUTE_ASSIGNED' | 'OUTSIDE_WORKING_HOURS';
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;

@@ -13,6 +13,7 @@ import { AppConfig } from './config/app-config.service.js';
 import { AbsencesModule } from './modules/absences/absences.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { CheckinsModule } from './modules/checkins/checkins.module.js';
 import { DriverModule } from './modules/driver/driver.module.js';
 import { DriversModule } from './modules/drivers/drivers.module.js';
 import { FinanceModule } from './modules/finance/finance.module.js';
@@ -55,6 +56,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     RoutesModule,
     AdminModule,
     DriverModule,
+    CheckinsModule,
     ParentModule,
     HealthModule,
   ],

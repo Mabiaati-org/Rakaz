@@ -233,6 +233,13 @@ export interface PendingAction {
   detail: string | null;
 }
 
+export interface WorkSchedule {
+  startTime: string;
+  endTime: string;
+  /** 0 = Sunday … 6 = Saturday */
+  days: number[];
+}
+
 /** Everything persisted locally so the driver can keep working offline. */
 export interface AppSnapshot {
   profile: DriverProfile | null;
@@ -244,6 +251,8 @@ export interface AppSnapshot {
   completedTripsTotal: number;
   /** True while the account still uses the temporary password issued by the administration. */
   mustChangePassword: boolean;
+  /** Duty hours from the administration, during which the app sends its five-minute check-ins. */
+  workSchedule: WorkSchedule | null;
 }
 
 /** A stop row resolved for display on the active leg. */

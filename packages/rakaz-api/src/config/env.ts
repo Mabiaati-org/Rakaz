@@ -49,6 +49,15 @@ export class Env {
   @IsOptional()
   @IsString()
   EXPO_ACCESS_TOKEN?: string;
+
+  /** Reverse-geocoding service for check-in addresses. Leave empty to turn address lookup off. */
+  @IsString()
+  OSM_NOMINATIM_URL: string = 'https://nominatim.openstreetmap.org';
+
+  /** Contact e-mail sent to the OpenStreetMap service, as its usage policy asks. */
+  @IsOptional()
+  @IsString()
+  OSM_CONTACT_EMAIL?: string;
 }
 
 export function validateEnv(raw: Record<string, unknown>): Env {

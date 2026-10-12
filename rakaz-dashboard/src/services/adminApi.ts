@@ -52,4 +52,8 @@ export const adminApi: RakazAdminApi = {
 
   getSettings: () => api(P.settings),
   saveSettings: (settings) => api(P.settings, 'PUT', settings),
+
+  getWorkSchedule: () => api(P.workSchedule),
+  saveWorkSchedule: (schedule) => api(P.workSchedule, 'PUT', schedule),
+  listCheckins: (params) => api(`${P.checkins}${query({ dateISO: params?.dateISO, driverUid: params?.driverUid })}`),
 };

@@ -1,4 +1,5 @@
 import type { RakazAuthUser, RakazIssuedCredentials } from './auth';
+import type { RakazAdminCheckin, RakazWorkSchedule } from './checkin';
 import type { RakazAbsenceReport, RakazGeoPoint, RakazTripEvent, RakazTripSnapshot, RakazTripStudentState } from './events';
 import type { RakazPayment, RakazPaymentInput, RakazSubscription, RakazSubscriptionInput } from './finance';
 import type { CanonicalStudentId, CanonicalTripId, RakazUid } from './ids';
@@ -183,5 +184,12 @@ export interface RakazAdminApi {
     }): Promise<RakazSupportTicket>;
     getSettings(): Promise<RakazSupportContact>;
     saveSettings(settings: RakazSupportContact): Promise<RakazSupportContact>;
+    getWorkSchedule(): Promise<RakazWorkSchedule>;
+    saveWorkSchedule(schedule: RakazWorkSchedule): Promise<RakazWorkSchedule>;
+    /** Driver check-ins of one day (default today), newest first. */
+    listCheckins(params?: {
+        dateISO?: string;
+        driverUid?: string;
+    }): Promise<RakazAdminCheckin[]>;
 }
 export type { RakazAuthUser };

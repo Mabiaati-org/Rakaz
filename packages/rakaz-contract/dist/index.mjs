@@ -120,6 +120,20 @@ function notificationForAction(action, tripKind) {
   }
 }
 
+// src/checkin.ts
+var RAKAZ_CHECKIN_INTERVAL_SECONDS = 300;
+var minutesOf = (time) => {
+  const [h, m] = time.split(":").map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+};
+function isWithinWorkSchedule(schedule, weekday, minutesOfDay) {
+  const start = minutesOf(schedule.startTime);
+  const end = minutesOf(schedule.endTime);
+  if (start <= end) return schedule.days.includes(weekday) && minutesOfDay >= start && minutesOfDay < end;
+  if (minutesOfDay >= start) return schedule.days.includes(weekday);
+  return minutesOfDay < end && schedule.days.includes((weekday + 6) % 7);
+}
+
 // src/http.ts
 var DEFAULT_RAKAZ_API_URL = "http://127.0.0.1:8787";
 var RAKAZ_API_PREFIX = "/api/v1";
@@ -150,7 +164,8 @@ var RakazHttpPaths = {
     bootstrap: p("/driver/bootstrap"),
     events: p("/driver/events"),
     location: p("/driver/location"),
-    absencesToday: p("/driver/absences/today")
+    absencesToday: p("/driver/absences/today"),
+    checkins: p("/driver/checkins")
   },
   parent: {
     bootstrap: p("/parent/bootstrap"),
@@ -186,7 +201,9 @@ var RakazHttpPaths = {
     finance: p("/admin/finance"),
     tickets: p("/admin/tickets"),
     ticket: (id) => p(`/admin/tickets/${enc(id)}`),
-    settings: p("/admin/settings")
+    settings: p("/admin/settings"),
+    workSchedule: p("/admin/work-schedule"),
+    checkins: p("/admin/checkins")
   }
 };
 function resolveRakazApiUrl(explicit) {
@@ -362,6 +379,7 @@ export {
   DEFAULT_RAKAZ_API_URL,
   ParentTripStatus,
   RAKAZ_API_PREFIX,
+  RAKAZ_CHECKIN_INTERVAL_SECONDS,
   RAKAZ_MIN_PASSWORD_LENGTH,
   RakazActionKind,
   RakazApiError,
@@ -369,6 +387,7 @@ export {
   buildTripId,
   createRakazClient,
   formatIraqiPhoneLocal,
+  isWithinWorkSchedule,
   normalizeIraqiPhone,
   notificationForAction,
   parentStatusFor,

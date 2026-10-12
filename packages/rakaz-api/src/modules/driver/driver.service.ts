@@ -14,7 +14,7 @@ export class DriverService {
   ) {}
 
   async bootstrap(driverId: string): Promise<RakazDriverBootstrap> {
-    const [user, route, support, completedTripsTotal] = await Promise.all([
+    const [user, route, support, completedTripsTotal, workSchedule] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: driverId }, include: { driverProfile: true } }),
       this.prisma.route.findFirst({
         where: { driverId, deletedAt: null, active: true },
@@ -25,6 +25,7 @@ export class DriverService {
       }),
       this.settings.get(),
       this.prisma.trip.count({ where: { driverId, phase: 'FINISHED' } }),
+      this.settings.getWorkSchedule(),
     ]);
 
     let wireRoute: RakazDriverRoute | null = null;
@@ -78,6 +79,7 @@ export class DriverService {
       route: wireRoute,
       today: await this.trips.driverToday(route?.id ?? null),
       completedTripsTotal,
+      workSchedule,
       serverTime: Date.now(),
     };
   }

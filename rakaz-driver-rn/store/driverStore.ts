@@ -6,6 +6,7 @@ import { RakazApiError, rakazErrorText, todayISO } from '@rakaz/contract';
 
 import { client, driverApi, onSessionLost } from '@/services/api';
 import { BusTracking } from '@/services/busTracking';
+import { Checkins } from '@/services/checkin';
 import { LocationTracker } from '@/services/location';
 import { NetworkMonitor } from '@/services/network';
 import { PersistenceService } from '@/services/persistence';
@@ -111,6 +112,7 @@ function snapshotOf(s: DriverState): AppSnapshot {
     lastSyncAt: s.lastSyncAt,
     completedTripsTotal: s.completedTripsTotal,
     mustChangePassword: s.mustChangePassword,
+    workSchedule: s.workSchedule,
   };
 }
 
@@ -124,6 +126,7 @@ function fromSnapshot(snap: AppSnapshot): DriverState {
     lastSyncAt: snap.lastSyncAt,
     completedTripsTotal: snap.completedTripsTotal,
     mustChangePassword: snap.mustChangePassword,
+    workSchedule: snap.workSchedule,
   };
 }
 
@@ -193,6 +196,7 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
     const resetLocal = (): void => {
       if (retryTimer.current) clearTimeout(retryTimer.current);
       void BusTracking.stop();
+      void Checkins.reset();
       void PersistenceService.clear();
       update(() => ({ ...initialDriverState(NO_ROUTE), networkConnected: get().networkConnected }));
     };
@@ -240,6 +244,7 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
           trip,
           completedTripsTotal: boot.completedTripsTotal,
           mustChangePassword: false,
+          workSchedule: boot.workSchedule,
         };
       });
       persist();
@@ -596,6 +601,22 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
     })();
     return () => location.stop();
   }, [loggedIn, location]);
+
+  // On duty, report where the driver is every five minutes; the check itself is cheap, so it runs each minute.
+  const workSchedule = state.workSchedule;
+  useEffect(() => {
+    if (!loggedIn) return undefined;
+    const tick = (): void => void Checkins.tick(workSchedule);
+    tick();
+    const timer = setInterval(tick, 60_000);
+    const appState = AppState.addEventListener('change', (status) => {
+      if (status === 'active') tick();
+    });
+    return () => {
+      clearInterval(timer);
+      appState.remove();
+    };
+  }, [loggedIn, workSchedule]);
 
   // Share the bus position for exactly as long as a trip is running.
   const phase = state.trip.phase;
