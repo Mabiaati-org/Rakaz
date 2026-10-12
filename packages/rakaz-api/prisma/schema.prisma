@@ -127,6 +127,8 @@ model User {
   /// Comma-separated NotificationKind values the user does not want as push notifications.
   mutedNotificationKinds String  @default("")
   lastLoginAt         DateTime?
+  /// Access tokens issued before this moment are rejected (password reset, account disabled).
+  sessionsRevokedAt   DateTime?
   deletionRequestedAt DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt

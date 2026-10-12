@@ -63,7 +63,11 @@ export class AccountsService {
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: user.id },
-        data: { passwordHash: await this.passwords.hash(temporaryPassword), mustChangePassword: true },
+        data: {
+          passwordHash: await this.passwords.hash(temporaryPassword),
+          mustChangePassword: true,
+          sessionsRevokedAt: new Date(),
+        },
       }),
       this.prisma.refreshToken.updateMany({
         where: { userId: user.id, revokedAt: null },

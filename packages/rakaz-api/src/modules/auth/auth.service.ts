@@ -153,11 +153,13 @@ export class AuthService {
     }
   }
 
+  /** Ends every session of the account: refresh tokens are revoked and issued access tokens stop working. */
   async revokeAllSessions(userId: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } }),
+      this.prisma.user.update({ where: { id: userId }, data: { sessionsRevokedAt: now } }),
+    ]);
   }
 
   private async issueSession(user: UserIdentity): Promise<RakazAuthSession> {

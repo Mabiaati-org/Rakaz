@@ -271,13 +271,15 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
             void bootstrap().catch(() => undefined);
           }
         } catch (error) {
-          // A rejected batch (e.g. the route was unassigned) would block the queue forever; drop it.
-          const rejected = error instanceof RakazApiError && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 429;
-          if (rejected) {
+          // Malformed events can never be accepted and would block the queue forever, so they are dropped.
+          // Anything else (offline, no route assigned yet, a session problem) keeps the queue for a retry.
+          const malformed = error instanceof RakazApiError && (error.status === 400 || error.status === 422);
+          if (malformed) {
             const sent = new Set(batch.map((a) => a.id));
             update((st) => ({ ...st, pending: st.pending.filter((a) => !sent.has(a.id)) }));
             emit(rakazErrorText(error), 'WARNING');
           } else {
+            if (error instanceof RakazApiError && error.code === 'NO_ROUTE_ASSIGNED') emit(error.display, 'WARNING');
             scheduleRetry();
           }
         }

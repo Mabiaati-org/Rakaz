@@ -256,7 +256,13 @@ describe('Rakaz API (e2e)', () => {
     });
 
     it('blocks an account that still has its temporary password', async () => {
+      // Tokens are stamped to the second, so let the clock move past the one issued above.
+      await new Promise((resolve) => setTimeout(resolve, 1100));
       const reset = await http().post(P.admin.resetPassword(driverUid)).set(auth(adminToken)).expect(200);
+      // The session the driver already had must stop working immediately.
+      const stale = await http().get(P.driver.bootstrap).set(auth(driverToken)).expect(401);
+      expect(stale.body.code).toBe('SESSION_EXPIRED');
+
       const session = await login('07705550000', reset.body.data.temporaryPassword);
       const res = await http().get(P.driver.bootstrap).set(auth(session.accessToken)).expect(403);
       expect(res.body.code).toBe('PASSWORD_CHANGE_REQUIRED');

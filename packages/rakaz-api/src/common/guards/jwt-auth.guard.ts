@@ -11,6 +11,8 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 export interface AccessTokenPayload {
   sub: string;
   role: string;
+  /** Issued-at, in seconds (set by the JWT library). */
+  iat?: number;
 }
 
 /** Global guard: every route needs a valid access token unless marked `@Public()`. */
@@ -41,9 +43,13 @@ export class JwtAuthGuard implements CanActivate {
     // Looked up on every request so a disabled or deleted account loses access immediately.
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, deletedAt: null },
-      select: { id: true, role: true, phone: true, name: true, active: true, mustChangePassword: true },
+      select: { id: true, role: true, phone: true, name: true, active: true, mustChangePassword: true, sessionsRevokedAt: true },
     });
     if (!user || !user.active) throw ApiError.unauthorized('الحساب غير مفعّل', 'ACCOUNT_DISABLED');
+    // A token that predates a password reset must stop working at once, not when it expires.
+    if (user.sessionsRevokedAt && (payload.iat ?? 0) < Math.floor(user.sessionsRevokedAt.getTime() / 1000)) {
+      throw ApiError.unauthorized('انتهت الجلسة، سجّل الدخول من جديد', 'SESSION_EXPIRED');
+    }
 
     if (user.mustChangePassword && !this.reflector.getAllAndOverride<boolean>(ALLOW_PENDING_PASSWORD_KEY, targets)) {
       throw ApiError.forbidden('يجب تغيير كلمة المرور المؤقتة أولاً', 'PASSWORD_CHANGE_REQUIRED');
