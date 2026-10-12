@@ -29,7 +29,7 @@ export default function HomeScreen() {
       </HeaderBar>
       <View style={styles.greeting}>
         <AppText size="subheadline" color={withAlpha(Theme.white, 0.7)}>
-          {`${morning ? 'صباح الخير' : 'مساء الخير'}، ${session.account?.familyName ?? 'عائلة أحمد'}`}
+          {`${morning ? 'صباح الخير' : 'مساء الخير'}، ${session.account?.familyName ?? ''}`}
         </AppText>
         <View style={styles.titleRow}>
           <AppText size={30} weight="bold" color={Theme.white}>

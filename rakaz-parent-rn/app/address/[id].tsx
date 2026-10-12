@@ -5,6 +5,7 @@ import { Animated, Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { PrimaryButton } from '@/components/Buttons';
+import { FormError } from '@/components/FormError';
 import { DetailScreen, EmptyState } from '@/components/DetailScreen';
 import { MapPinBadge } from '@/components/map/MapMarkers';
 import RakazMap from '@/components/map/RakazMap';
@@ -12,6 +13,7 @@ import { type MapRegion, regionAround } from '@/components/map/mapTypes';
 import { InfoRow, RowDivider } from '@/components/Primitives';
 import { HeaderTextButton } from '@/components/ScreenHeader';
 import { card, plex, TextSizes, Theme, withAlpha } from '@/constants/theme';
+import { useSubmit } from '@/hooks/useSubmit';
 import { useFamily } from '@/store/familyStore';
 import { addressCoordinate, type StudentAddress } from '@/types/models';
 import { Fmt } from '@/utils/fmt';
@@ -32,6 +34,7 @@ const FIELDS: { key: TextKey; icon: LucideIcon; label: string; multiline?: boole
 export default function AddressScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const store = useFamily();
+  const submit = useSubmit();
   const student = store.state.students.find((s) => s.id === id);
   const [draft, setDraft] = useState<StudentAddress | null>(student?.address ?? null);
   const [camera, setCamera] = useState<MapRegion | null>(student ? regionAround(addressCoordinate(student.address), 0.006) : null);
@@ -53,11 +56,13 @@ export default function AddressScreen() {
   }
 
   const save = () => {
-    store.updateAddress(draft, student.id);
-    setIsEditing(false);
-    setIsDragging(false);
-    setSaved(true);
-    setCamera(regionAround(addressCoordinate(draft), 0.006));
+    void submit.run(() => store.updateAddress(draft, student.id)).then((ok) => {
+      if (!ok) return;
+      setIsEditing(false);
+      setIsDragging(false);
+      setSaved(true);
+      setCamera(regionAround(addressCoordinate(draft), 0.006));
+    });
   };
 
   const trailing = isEditing ? (
@@ -145,12 +150,13 @@ export default function AddressScreen() {
         ))}
       </View>
 
-      {isEditing ? <PrimaryButton title="حفظ العنوان" icon={Check} onPress={save} /> : null}
+      <FormError message={submit.error} />
+      {isEditing ? <PrimaryButton title="حفظ العنوان" icon={Check} onPress={save} loading={submit.busy} /> : null}
       {saved && !isEditing ? (
         <View style={styles.saved}>
           <BadgeCheck size={16} color={Theme.green} />
           <AppText size="footnote" weight="semibold" color={Theme.green}>
-            تم حفظ العنوان وإرساله للإدارة للمراجعة
+            تم حفظ العنوان وإبلاغ السائق والإدارة
           </AppText>
         </View>
       ) : null}

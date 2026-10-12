@@ -1,14 +1,14 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bus, Hash, Palette, Phone, ShieldCheck, Star, User } from 'lucide-react-native';
-import { Image, Linking, StyleSheet, View } from 'react-native';
+import { Bus, Hash, Palette, Phone, ShieldCheck, User } from 'lucide-react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { PrimaryButton } from '@/components/Buttons';
 import { DetailScreen } from '@/components/DetailScreen';
-import { Avatar, InfoRow, photoSource, RowDivider } from '@/components/Primitives';
+import { Avatar, InfoRow, RowDivider } from '@/components/Primitives';
 import { card, Theme, withAlpha } from '@/constants/theme';
 import { useFamily } from '@/store/familyStore';
-import { maskedPhone } from '@/types/models';
+import { driverTenure, maskedPhone } from '@/types/models';
 import { Fmt } from '@/utils/fmt';
 
 /** Guardian-facing driver profile. Only non-sensitive fields are shown; the phone number is masked. */
@@ -16,25 +16,21 @@ export default function DriverScreen() {
   const store = useFamily();
   const driver = store.student.driver;
   const vehicle = driver.vehicle;
-  const photo = photoSource(vehicle.photoName);
+  const tenure = driverTenure(driver);
 
   return (
     <DetailScreen title="بيانات السائق">
       <View style={styles.hero}>
-        {photo ? (
-          <Image source={photo} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        ) : (
-          <View style={styles.heroIcon}>
-            <Bus size={70} color={withAlpha(Theme.goldLight, 0.7)} strokeWidth={1.4} />
-          </View>
-        )}
+        <View style={styles.heroIcon}>
+          <Bus size={70} color={withAlpha(Theme.goldLight, 0.7)} strokeWidth={1.4} />
+        </View>
         <LinearGradient colors={['transparent', withAlpha(Theme.black, 0.6)]} start={{ x: 0.5, y: 0.5 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
         <View style={styles.heroText}>
           <AppText size="title3" weight="bold" color={Theme.white}>
-            {vehicle.model}
+            {vehicle.model || `حافلة ${vehicle.busNumber}`}
           </AppText>
           <AppText size="caption" weight="semibold" color={withAlpha(Theme.white, 0.8)}>
-            {`حافلة ${vehicle.busNumber} · ${Fmt.digits(String(vehicle.capacity))} مقعداً`}
+            {vehicle.capacity != null ? `حافلة ${vehicle.busNumber} · ${Fmt.digits(String(vehicle.capacity))} مقعداً` : `حافلة ${vehicle.busNumber}`}
           </AppText>
         </View>
         <View style={styles.plate}>
@@ -45,7 +41,7 @@ export default function DriverScreen() {
       </View>
 
       <View style={[card(16), styles.row14]}>
-        <Avatar imageName={driver.photoName} initials={driver.name.charAt(0)} size={72} tint={Theme.navy} />
+        <Avatar initials={driver.name.charAt(0)} size={72} tint={Theme.navy} />
         <View style={styles.flexGap4}>
           <AppText size="caption" color={Theme.muted}>
             السائق
@@ -53,28 +49,33 @@ export default function DriverScreen() {
           <AppText size="title3" weight="bold">
             {driver.name}
           </AppText>
-          <View style={styles.row4}>
-            <Star size={12} color={Theme.gold} fill={Theme.gold} />
+          {tenure ? (
             <AppText size="caption" weight="semibold" color={Theme.muted}>
-              {`${Fmt.number(driver.rating)} · منذ ${Fmt.digits(String(driver.yearsWithRakaz))} سنوات مع ركاز`}
+              {Fmt.digits(tenure)}
             </AppText>
-          </View>
+          ) : null}
         </View>
       </View>
 
       <View style={card(12)}>
         <InfoRow icon={User} label="اسم السائق" value={driver.name} />
         <RowDivider />
-        <InfoRow icon={Phone} label="رقم الهاتف" value={maskedPhone(driver)} mono />
+        <InfoRow icon={Phone} label="رقم الهاتف" value={driver.phone ? maskedPhone(driver) : '—'} mono />
         <RowDivider />
-        <InfoRow icon={Bus} label="نوع المركبة" value={`${vehicle.model} — ${vehicle.type}`} />
+        <InfoRow icon={Bus} label="نوع المركبة" value={vehicle.model || '—'} />
         <RowDivider />
-        <InfoRow icon={Hash} label="رقم المركبة" value={vehicle.plateNumber} />
+        <InfoRow icon={Hash} label="رقم المركبة" value={vehicle.plateNumber || '—'} />
         <RowDivider />
-        <InfoRow icon={Palette} label="اللون" value={vehicle.color} />
+        <InfoRow icon={Palette} label="اللون" value={vehicle.color || '—'} />
       </View>
 
-      <PrimaryButton title="الاتصال بالسائق" icon={Phone} fill={Theme.green} onPress={() => void Linking.openURL(`tel:${driver.phone}`)} />
+      {driver.assigned ? (
+        <PrimaryButton title="الاتصال بالسائق" icon={Phone} fill={Theme.green} onPress={() => void Linking.openURL(`tel:${driver.phone}`)} />
+      ) : (
+        <AppText size="footnote" color={Theme.muted} align="center">
+          لم تُسند الإدارة سائقاً لهذا الطالب بعد.
+        </AppText>
+      )}
 
       <View style={styles.privacy}>
         <ShieldCheck size={16} color={Theme.blue} fill={withAlpha(Theme.blue, 0.2)} />

@@ -185,3 +185,8 @@ export interface RakazParentNotification {
   at: number;
   read: boolean;
 }
+
+/** Which notification kinds the user does not want pushed to their phone. The inbox still records them. */
+export interface RakazNotificationPreferences {
+  muted: RakazNotificationKind[];
+}

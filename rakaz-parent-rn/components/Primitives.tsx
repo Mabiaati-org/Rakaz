@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { Check, ChevronLeft, CircleCheck, Copy, type LucideIcon } from 'lucide-react-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, type ImageSourcePropType, Platform, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, Platform, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { PressableScale } from '@/components/PressableScale';
@@ -9,21 +9,7 @@ import { Theme } from '@/constants/theme';
 import { Gender, type Student, studentInitials } from '@/types/models';
 import { Haptics } from '@/utils/haptics';
 
-import busDriverHeadshot from '@/assets/images/bus_driver_headshot.png';
-import vehiclePhoto from '@/assets/images/photorealistic_three_quarter.png';
 import rakazLogo from '@/assets/images/rakaz_logo.png';
-import schoolgirlPortrait from '@/assets/images/schoolgirl_portrait.png';
-
-/** Bundled images addressed by the `photoName` fields of the models (Swift asset catalog names). */
-const PHOTOS: Record<string, ImageSourcePropType> = {
-  bus_driver_headshot: busDriverHeadshot,
-  photorealistic_three_quarter: vehiclePhoto,
-  schoolgirl_portrait: schoolgirlPortrait,
-};
-
-export function photoSource(name: string | null): ImageSourcePropType | null {
-  return name != null ? (PHOTOS[name] ?? null) : null;
-}
 
 export { rakazLogo };
 
@@ -91,17 +77,14 @@ export function IconBadge({ icon: Icon, tint = Theme.navy, soft = Theme.blueSoft
 }
 
 export interface AvatarProps {
-  imageName: string | null;
   initials: string;
   size?: number;
   tint?: string;
 }
 
-/** Photo avatar with initials fallback. */
-export function Avatar({ imageName, initials, size = 52, tint = Theme.gold }: AvatarProps) {
-  const source = photoSource(imageName);
+/** Initials on a tinted tile. */
+export function Avatar({ initials, size = 52, tint = Theme.gold }: AvatarProps) {
   const frame = { width: size, height: size, borderRadius: size * 0.3, overflow: 'hidden' as const };
-  if (source) return <Image source={source} style={frame} resizeMode="cover" />;
   return (
     <View style={[frame, { backgroundColor: tint, alignItems: 'center', justifyContent: 'center' }]}>
       <AppText size={size * 0.34} weight="bold" color={Theme.white} align="center">

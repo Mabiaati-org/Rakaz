@@ -124,6 +124,8 @@ model User {
   role                Role
   active              Boolean   @default(true)
   mustChangePassword  Boolean   @default(true)
+  /// Comma-separated NotificationKind values the user does not want as push notifications.
+  mutedNotificationKinds String  @default("")
   lastLoginAt         DateTime?
   deletionRequestedAt DateTime?
   createdAt           DateTime  @default(now())

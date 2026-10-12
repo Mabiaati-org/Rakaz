@@ -7,10 +7,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/AppText';
 import { BrandHeaderBackground, MonogramTile } from '@/components/Brand';
 import { PrimaryButton } from '@/components/Buttons';
+import { FormError } from '@/components/FormError';
 import { PressableScale } from '@/components/PressableScale';
 import { StudentAvatar } from '@/components/Primitives';
 import { card, Theme, withAlpha } from '@/constants/theme';
 import { usePulse } from '@/hooks/useAnimatedNumber';
+import { useSubmit } from '@/hooks/useSubmit';
 import { useFamily } from '@/store/familyStore';
 import { eventDate, shortName, TripStatus } from '@/types/models';
 import { Fmt } from '@/utils/fmt';
@@ -20,6 +22,7 @@ const SHEET_BG = '#EEF3F1';
 /** Design 63: after the return trip arrives home, the guardian confirms they received the child. */
 export default function HandoverScreen() {
   const store = useFamily();
+  const submit = useSubmit();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [confirmed, setConfirmed] = useState(false);
@@ -39,15 +42,18 @@ export default function HandoverScreen() {
 
   useEffect(() => () => dismissHandover(), [dismissHandover]);
 
+  // Stay open on the thank-you state after confirming; otherwise follow the server.
   useEffect(() => {
-    if (!store.state.handoverPending) close();
-  }, [store.state.handoverPending, close]);
+    if (!store.state.handoverPending && !confirmed) close();
+  }, [store.state.handoverPending, confirmed, close]);
 
   const confirm = () => {
-    store.confirmHandover();
-    setConfirmed(true);
-    pop.setValue(0.6);
-    Animated.spring(pop, { toValue: 1, speed: 12, bounciness: 14, useNativeDriver: Platform.OS !== 'web' }).start();
+    void submit.run(() => store.confirmHandover()).then((ok) => {
+      if (!ok) return;
+      setConfirmed(true);
+      pop.setValue(0.6);
+      Animated.spring(pop, { toValue: 1, speed: 12, bounciness: 14, useNativeDriver: Platform.OS !== 'web' }).start();
+    });
   };
 
   return (
@@ -153,11 +159,13 @@ export default function HandoverScreen() {
           </View>
         </View>
 
+        <FormError message={submit.error} />
         <PrimaryButton
           title={confirmed ? 'تم' : `تأكيد استلام ${student.firstName}`}
           icon={confirmed ? Check : ShieldCheck}
           fill={confirmed ? Theme.greenDeep : Theme.teal}
           height={58}
+          loading={submit.busy}
           onPress={confirmed ? close : confirm}
         />
 
@@ -165,8 +173,9 @@ export default function HandoverScreen() {
           <PressableScale
             accessibilityLabel="لم تصلني بعد؟ أبلغي عن مشكلة"
             onPress={() => {
-              store.reportHandoverIssue();
-              close();
+              void submit.run(() => store.reportHandoverIssue()).then((ok) => {
+                if (ok) close();
+              });
             }}
             style={styles.issue}
           >

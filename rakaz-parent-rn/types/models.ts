@@ -145,7 +145,7 @@ export interface AppNotification {
   isRead: boolean;
 }
 
-/** User opt-in per push-notification type. */
+/** Which notification kinds the guardian wants pushed to the phone (saved on the server). */
 export interface NotificationPreferences {
   enabled: Record<string, boolean>;
 }
@@ -162,21 +162,34 @@ export function isNotificationOn(prefs: NotificationPreferences, kind: Notificat
 
 export interface Vehicle {
   model: string;
-  type: string;
   plateNumber: string;
   color: string;
-  capacity: number;
-  photoName: string | null;
+  capacity: number | null;
   busNumber: string;
 }
 
 export interface Driver {
+  /** False until the administration puts the student on a route that has a driver. */
+  assigned: boolean;
   name: string;
-  photoName: string | null;
   phone: string;
-  rating: number;
-  yearsWithRakaz: number;
+  /** When the driver joined, or null when unknown. */
+  joinedAt: number | null;
   vehicle: Vehicle;
+}
+
+export const UNASSIGNED_DRIVER: Driver = {
+  assigned: false,
+  name: 'لم يُحدَّد بعد',
+  phone: '',
+  joinedAt: null,
+  vehicle: { model: '', plateNumber: '', color: '', capacity: null, busNumber: '' },
+};
+
+/** "With Rakaz since 2024", or null when the join date is unknown. */
+export function driverTenure(driver: Driver): string | null {
+  if (driver.joinedAt == null) return null;
+  return `مع ركاز منذ ${new Date(driver.joinedAt).getFullYear()}`;
 }
 
 /** Only the last 4 digits are exposed in UI; the full number is used solely to place a call. */
@@ -298,7 +311,7 @@ export interface School {
   phone: string;
 }
 
-function todayAt(hour: number, minute: number): number {
+export function todayAt(hour: number, minute: number): number {
   const d = new Date();
   d.setHours(hour, minute, 0, 0);
   return d.getTime();
@@ -351,9 +364,8 @@ export interface Student {
   id: string;
   fullName: string;
   firstName: string;
-  photoName: string | null;
-  birthDate: number;
-  gender: Gender;
+  birthDate: number | null;
+  gender: Gender | null;
   grade: string;
   stage: string;
   schoolName: string;
@@ -363,6 +375,11 @@ export interface Student {
   address: StudentAddress;
   school: School;
   driver: Driver;
+  /** Name of the bus route, or null while the student is not on one. */
+  routeName: string | null;
+  /** Scheduled stop times (HH:mm), or null while the student is not on a route. */
+  pickupTime: string | null;
+  dropoffTime: string | null;
 }
 
 export function studentInitials(s: Student): string {
@@ -374,7 +391,8 @@ export function studentInitials(s: Student): string {
     .join(' ');
 }
 
-export function studentAge(s: Student): number {
+export function studentAge(s: Student): number | null {
+  if (s.birthDate == null) return null;
   const birth = new Date(s.birthDate);
   const now = new Date();
   let age = now.getFullYear() - birth.getFullYear();
@@ -434,7 +452,10 @@ export interface SupportTicket {
   topic: TicketTopic;
   body: string;
   createdAt: number;
+  /** Arabic status label from the administration. */
   status: string;
+  /** The administration's answer, once there is one. */
+  reply: string | null;
 }
 
 export interface FAQItem {
@@ -539,10 +560,13 @@ export interface Trip {
   scheduledStart: number;
   expectedArrival: number;
   progress: number;
-  distanceKm: number;
-  speedKmh: number;
   events: TripEvent[];
   updatedAt: number;
+  /** Last position reported by the driver's phone; null until the first fix arrives. */
+  busLocation: Coordinate | null;
+  busUpdatedAt: number | null;
+  /** Stops the bus still serves before this student; null when not applicable. */
+  stopsAhead: number | null;
 }
 
 export function isPickedUp(t: Trip): boolean {
@@ -577,6 +601,8 @@ export interface Account {
   name: string;
   familyName: string;
   type: AccountType;
+  /** True while the account still uses the temporary password issued by the administration. */
+  mustChangePassword: boolean;
 }
 
 let idCounter = 0;

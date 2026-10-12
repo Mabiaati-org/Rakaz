@@ -22,17 +22,16 @@ import { Linking, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BrandScreen, HeaderBar } from '@/components/Brand';
 import { PressableScale } from '@/components/PressableScale';
-import { IconBadge, SectionTitle, StatusPill } from '@/components/Primitives';
-import { ADMIN_PHONE, WHATSAPP_NUMBER } from '@/constants/contact';
+import { IconBadge, SectionTitle } from '@/components/Primitives';
+import { FAQS } from '@/constants/faqs';
 import { card, heroShadow, plex, TextSizes, Theme, withAlpha } from '@/constants/theme';
-import { MockData } from '@/data/mockData';
 import { useAppNav } from '@/hooks/useAppNav';
 import { useFamily } from '@/store/familyStore';
 import { TicketKind, TicketKindTitle, TicketTopicTitle } from '@/types/models';
 import { Fmt } from '@/utils/fmt';
 import { Haptics } from '@/utils/haptics';
 
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('مرحباً، أحتاج مساعدة بخصوص النقل المدرسي')}`;
+const WHATSAPP_TEXT = encodeURIComponent('مرحباً، أحتاج مساعدة بخصوص النقل المدرسي');
 
 /** "مركز المساعدة" (design 83): urgent call card, search, popular topics, recent questions and quick answers. */
 export default function SupportScreen() {
@@ -43,11 +42,12 @@ export default function SupportScreen() {
   const [showAll, setShowAll] = useState(false);
   const q = query.trim();
   const tickets = store.state.tickets;
+  const { adminPhone, whatsappNumber } = store.state.support;
 
   const faqs = (() => {
-    if (q.length === 0) return showAll ? MockData.faqs : MockData.faqs.slice(0, 4);
+    if (q.length === 0) return showAll ? FAQS : FAQS.slice(0, 4);
     const needle = q.toLocaleLowerCase();
-    return MockData.faqs.filter((f) => f.question.toLocaleLowerCase().includes(needle) || f.answer.toLocaleLowerCase().includes(needle));
+    return FAQS.filter((f) => f.question.toLocaleLowerCase().includes(needle) || f.answer.toLocaleLowerCase().includes(needle));
   })();
 
   const header = (
@@ -78,22 +78,21 @@ export default function SupportScreen() {
       <View style={[card(16, 26), heroShadow, styles.row12]}>
         <IconBadge icon={Headphones} tint={Theme.gold} soft="#F4E8D0" size={50} />
         <View style={styles.flexGap2}>
-          <View style={styles.row6}>
-            <AppText size="headline" weight="bold">
-              مكالمة عاجلة؟
-            </AppText>
-            <StatusPill title="متاح الآن" tint={Theme.greenDeep} soft={Theme.greenSoft} />
-          </View>
+          <AppText size="headline" weight="bold">
+            مكالمة عاجلة؟
+          </AppText>
           <AppText size="caption" color={Theme.muted}>
-            فريقنا يرد خلال أقل من دقيقتين
+            تواصل مباشرة مع إدارة النقل
           </AppText>
         </View>
-        <PressableScale accessibilityLabel="اتصل بنا" onPress={() => void Linking.openURL(`tel:${ADMIN_PHONE}`)} style={styles.callButton}>
-          <Phone size={14} color={Theme.white} />
-          <AppText size="footnote" weight="bold" color={Theme.white}>
-            اتصل بنا
-          </AppText>
-        </PressableScale>
+        {adminPhone ? (
+          <PressableScale accessibilityLabel="اتصل بنا" onPress={() => void Linking.openURL(`tel:${adminPhone}`)} style={styles.callButton}>
+            <Phone size={14} color={Theme.white} />
+            <AppText size="footnote" weight="bold" color={Theme.white}>
+              اتصل بنا
+            </AppText>
+          </PressableScale>
+        ) : null}
       </View>
 
       <View style={styles.search}>
@@ -125,7 +124,14 @@ export default function SupportScreen() {
           </View>
           <SectionTitle title="تواصل معنا" />
           <View style={styles.row10}>
-            <ContactTile icon={MessageCircle} title="WhatsApp" tint={Theme.whatsapp} onPress={() => void Linking.openURL(WHATSAPP_URL)} />
+            {whatsappNumber ? (
+              <ContactTile
+                icon={MessageCircle}
+                title="WhatsApp"
+                tint={Theme.whatsapp}
+                onPress={() => void Linking.openURL(`https://wa.me/${whatsappNumber}?text=${WHATSAPP_TEXT}`)}
+              />
+            ) : null}
             <ContactTile
               icon={MessageCircleWarning}
               title="شكوى"
@@ -169,6 +175,11 @@ export default function SupportScreen() {
                       <AppText size="caption" color={Theme.muted} numberOfLines={1}>
                         {`${Fmt.digits(t.id)} · ${t.status}`}
                       </AppText>
+                      {t.reply ? (
+                        <AppText size="caption" color={Theme.ink}>
+                          {`رد الإدارة: ${t.reply}`}
+                        </AppText>
+                      ) : null}
                     </View>
                   </View>
                 ))}
@@ -227,7 +238,7 @@ export default function SupportScreen() {
             </View>
           ) : null}
         </View>
-        {!showAll && query.length === 0 && MockData.faqs.length > 4 ? (
+        {!showAll && query.length === 0 && FAQS.length > 4 ? (
           <PressableScale accessibilityLabel="عرض كل الأسئلة" onPress={() => setShowAll(true)} style={styles.showAll}>
             <AppText size="footnote" weight="bold" color={Theme.gold} align="center">
               عرض كل الأسئلة

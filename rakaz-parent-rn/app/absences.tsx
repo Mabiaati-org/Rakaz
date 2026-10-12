@@ -9,7 +9,10 @@ import { StatusPill } from '@/components/Primitives';
 import { AbsenceReasonIcon } from '@/constants/visuals';
 import { card, Theme } from '@/constants/theme';
 import { useAppNav } from '@/hooks/useAppNav';
+import { rakazErrorText } from '@rakaz/contract';
+
 import { useFamily } from '@/store/familyStore';
+import { showAlert } from '@/utils/dialog';
 import { AbsenceReasonTitle, AbsenceScopeTitle } from '@/types/models';
 import { Fmt } from '@/utils/fmt';
 import { Haptics } from '@/utils/haptics';
@@ -66,7 +69,7 @@ export default function AbsenceHistoryScreen() {
                       accessibilityLabel="إلغاء"
                       onPress={() => {
                         Haptics.tap();
-                        store.cancelAbsence(a.id);
+                        void store.cancelAbsence(a.id).catch((error: unknown) => showAlert('تعذّر إلغاء البلاغ', rakazErrorText(error)));
                       }}
                       style={styles.cancel}
                     >

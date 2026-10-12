@@ -16,8 +16,6 @@ import {
   Minus,
   Phone,
   Plus,
-  RotateCcw,
-  Star,
   User,
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
@@ -39,6 +37,7 @@ import { parseTripKind, useAppNav } from '@/hooks/useAppNav';
 import { useAnimatedNumber } from '@/hooks/useAnimatedNumber';
 import { useFamily } from '@/store/familyStore';
 import {
+  driverTenure,
   eventDate,
   hasArrived,
   isActive,
@@ -91,7 +90,7 @@ export default function TripLiveScreen() {
   };
 
   const legs = store.legs(kind);
-  const showRestart = trip.status === TripStatus.finished || (store.state.morningTrip.status === TripStatus.finished && store.state.returnTrip.status === TripStatus.finished);
+  const liveBus = store.busLocation(kind);
 
   return (
     <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
@@ -125,7 +124,8 @@ export default function TripLiveScreen() {
           markers={[
             { id: 'home', coordinate: store.homeCoordinate, anchor: 'bottom', view: <MapPlaceLabel icon={House} title="منزل العائلة" tint={Theme.gold} /> },
             { id: 'school', coordinate: store.schoolCoordinate, anchor: 'bottom', view: <MapPlaceLabel icon={Flag} title="المدرسة" tint={Theme.sage} /> },
-            { id: 'bus', coordinate: bus, animated: isMoving(trip.status), view: <BusMarker moving={isMoving(trip.status)} /> },
+            // The bus is drawn only where the driver's phone actually reported it.
+            ...(liveBus ? [{ id: 'bus', coordinate: liveBus, animated: isMoving(trip.status), view: <BusMarker moving={isMoving(trip.status)} /> }] : []),
           ]}
           style={StyleSheet.absoluteFill}
         />
@@ -137,7 +137,7 @@ export default function TripLiveScreen() {
         </View>
         <View pointerEvents="none" style={styles.mapUpdated}>
           <AppText size="caption2" weight="medium">
-            {`آخر تحديث ${Fmt.relative(trip.updatedAt)}`}
+            {liveBus && trip.busUpdatedAt != null ? `موقع الحافلة ${Fmt.relative(trip.busUpdatedAt)}` : isActive(trip.status) ? 'بانتظار موقع الحافلة' : `آخر تحديث ${Fmt.relative(trip.updatedAt)}`}
           </AppText>
         </View>
       </View>
@@ -167,16 +167,17 @@ export default function TripLiveScreen() {
         )}
         <UpdatesCard />
         <View style={styles.row10}>
-          <PrimaryButton
-            title="اتصال بالسائق"
-            icon={Phone}
-            fill={isReturn ? Theme.teal : Theme.navy}
-            onPress={() => void Linking.openURL(`tel:${store.student.driver.phone}`)}
-            style={styles.flex}
-          />
+          {store.student.driver.assigned ? (
+            <PrimaryButton
+              title="اتصال بالسائق"
+              icon={Phone}
+              fill={isReturn ? Theme.teal : Theme.navy}
+              onPress={() => void Linking.openURL(`tel:${store.student.driver.phone}`)}
+              style={styles.flex}
+            />
+          ) : null}
           <SupportButton />
         </View>
-        {showRestart ? <OutlineButton title="إعادة تشغيل العرض التجريبي" icon={RotateCcw} tint={Theme.gold} onPress={store.restartDemo} /> : null}
       </View>
       <View style={{ height: 30 + insets.bottom }} />
     </ScrollView>
@@ -366,6 +367,7 @@ function DriverCard() {
   const store = useFamily();
   const nav = useAppNav();
   const driver = store.student.driver;
+  const tenure = driverTenure(driver);
   return (
     <View style={[card(14), styles.row12]}>
       <View style={styles.driverIcon}>
@@ -378,12 +380,11 @@ function DriverCard() {
         <AppText size="headline" weight="bold">
           {driver.name}
         </AppText>
-        <View style={styles.row4}>
-          <Star size={11} color={Theme.gold} fill={Theme.gold} />
+        {tenure ? (
           <AppText size="caption" weight="semibold" color={Theme.gold}>
-            {`${Fmt.number(driver.rating)} · منذ ${Fmt.digits(String(driver.yearsWithRakaz))} سنوات مع ركاز`}
+            {Fmt.digits(tenure)}
           </AppText>
-        </View>
+        ) : null}
       </View>
       <PressableScale accessibilityLabel="الملف" onPress={nav.driver} style={styles.profileButton}>
         <AppText size="footnote" weight="bold" color={Theme.gold}>
@@ -400,23 +401,18 @@ function RouteDetails({ kind, trip }: { kind: TripKind; trip: Trip }) {
   const school = store.student.school.name;
   const pickupTitle = kind === TripKind.morning ? 'منزل العائلة' : school;
   const dropTitle = kind === TripKind.morning ? school : 'منزل العائلة';
-  const midTitle = kind === TripKind.morning ? store.student.address.neighborhood : 'شارع الكورنيش';
   const pickupDate = eventDate(trip, TripStatus.studentPickedUp);
   const pickupETA = trip.status < TripStatus.studentPickedUp ? Date.now() + store.etaMinutes(kind) * 60_000 : null;
   const eta = store.etaDate(kind);
-  const midDate = pickupDate != null ? pickupDate + (eta - pickupDate) / 2 : null;
   const pickedUp = isPickedUp(trip);
   const arrived = hasArrived(trip);
 
   const pickupState: TimelineState = pickedUp ? 'done' : isActive(trip.status) ? 'current' : 'pending';
-  const midState: TimelineState =
-    arrived || (trip.status === TripStatus.onTheWayToSchool && trip.progress > 0.5) ? 'done' : trip.status === TripStatus.onTheWayToSchool ? 'current' : 'pending';
-  const dropState: TimelineState = arrived ? 'done' : trip.status === TripStatus.onTheWayToSchool && trip.progress > 0.5 ? 'current' : 'pending';
+  const dropState: TimelineState = arrived ? 'done' : pickedUp ? 'current' : 'pending';
 
   return (
     <View style={card(18)}>
       <StationRow title={pickupTitle} subtitle={pickedUp ? `تم الالتقاط · ${name}` : 'نقطة الاستلام'} time={pickupDate ?? pickupETA ?? trip.scheduledStart} state={pickupState} isLast={false} />
-      <StationRow title={midTitle} subtitle={midState === 'done' ? 'تم العبور' : 'توقف قادم'} time={midDate} state={midState} isLast={false} />
       <StationRow title={dropTitle} subtitle={arrived ? 'تم الوصول' : 'الوصول المتوقع'} time={eta} state={dropState} isLast />
     </View>
   );

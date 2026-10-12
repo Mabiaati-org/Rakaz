@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { RakazDeviceRegistration } from '@rakaz/contract';
-import { IsIn, IsString, Matches, MaxLength } from 'class-validator';
+import type { RakazDeviceRegistration, RakazNotificationKind, RakazNotificationPreferences } from '@rakaz/contract';
+import { ArrayMaxSize, IsArray, IsIn, IsString, Matches, MaxLength } from 'class-validator';
+
+import { notificationKindMap } from '../../../common/mappers.js';
 
 export class RegisterDeviceDto implements RakazDeviceRegistration {
   @ApiProperty({ example: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]' })
@@ -19,4 +21,12 @@ export class UnregisterDeviceDto {
   @IsString()
   @MaxLength(255)
   token: string;
+}
+
+export class NotificationPreferencesDto implements RakazNotificationPreferences {
+  @ApiProperty({ enum: notificationKindMap.wireValues, isArray: true })
+  @IsArray()
+  @ArrayMaxSize(notificationKindMap.wireValues.length)
+  @IsIn(notificationKindMap.wireValues, { each: true })
+  muted: RakazNotificationKind[];
 }

@@ -17,6 +17,7 @@ export declare const RakazHttpPaths: {
         readonly read: (id: string) => string;
         readonly readAll: string;
         readonly remove: (id: string) => string;
+        readonly preferences: string;
         readonly registerDevice: string;
         readonly unregisterDevice: string;
     };

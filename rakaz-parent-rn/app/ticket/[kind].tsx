@@ -5,11 +5,13 @@ import { Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { PrimaryButton } from '@/components/Buttons';
+import { FormError } from '@/components/FormError';
 import { DetailScreen } from '@/components/DetailScreen';
 import { PressableScale } from '@/components/PressableScale';
 import { HeaderTextButton } from '@/components/ScreenHeader';
 import { SentConfirmation } from '@/components/SentConfirmation';
 import { plex, TextSizes, Theme, withAlpha } from '@/constants/theme';
+import { useSubmit } from '@/hooks/useSubmit';
 import { useFamily } from '@/store/familyStore';
 import { allTicketTopics, TicketKind, TicketTopic, TicketTopicTitle } from '@/types/models';
 import { Fmt } from '@/utils/fmt';
@@ -21,6 +23,7 @@ export default function TicketComposerScreen() {
   const params = useLocalSearchParams<{ kind: string }>();
   const kind = params.kind === TicketKind.complaint ? TicketKind.complaint : TicketKind.feedback;
   const store = useFamily();
+  const submit = useSubmit();
   const router = useRouter();
   const [topic, setTopic] = useState<TicketTopic>(TicketTopic.driver);
   const [text, setText] = useState('');
@@ -85,15 +88,18 @@ export default function TicketComposerScreen() {
               {`${Fmt.digits(String(text.length))}/٥٠٠`}
             </AppText>
           </View>
+          <FormError message={submit.error} />
           <PrimaryButton
             title="إرسال"
             icon={Send}
             fill={complaint ? Theme.red : Theme.navy}
             disabled={!isValid}
+            loading={submit.busy}
             style={{ opacity: isValid ? 1 : 0.5 }}
             onPress={() => {
-              store.submitTicket(kind, topic, text);
-              setSent(true);
+              void submit.run(() => store.submitTicket(kind, topic, text)).then((ok) => {
+                if (ok) setSent(true);
+              });
             }}
           />
         </>

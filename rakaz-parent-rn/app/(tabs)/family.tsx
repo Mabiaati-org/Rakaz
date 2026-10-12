@@ -2,22 +2,25 @@ import {
   Bell,
   Bus,
   CalendarMinus,
-  Check,
   ChevronLeft,
   CreditCard,
   Ellipsis,
   House,
   IdCard,
+  KeyRound,
   LogOut,
   type LucideIcon,
   MapPinned,
   Pencil,
   Phone,
   Plus,
+  ShieldCheck,
   SlidersHorizontal,
+  Trash2,
 } from 'lucide-react-native';
+import Constants from 'expo-constants';
 import { type ReactNode, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { ActionSheet } from '@/components/ActionSheet';
 import { AppText } from '@/components/AppText';
@@ -47,7 +50,7 @@ export default function FamilyScreen() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const account = session.account;
   const student = store.student;
-  const initials = (account?.name ?? 'أحمد محمد')
+  const initials = (account?.name ?? '')
     .split(' ')
     .filter((p) => p.length > 0)
     .slice(0, 2)
@@ -77,26 +80,18 @@ export default function FamilyScreen() {
         </View>
         <View style={styles.flexGap1}>
           <AppText size="title3" weight="bold" color={Theme.white}>
-            {account?.familyName ?? 'عائلة أحمد'}
+            {account?.familyName ?? ''}
           </AppText>
           <AppText size="caption" color={withAlpha(Theme.white, 0.6)}>
             {`${account ? AccountTypeTitle[account.type] : 'ولي الأمر'} · ${account?.name ?? ''}`}
-          </AppText>
-        </View>
-        <View style={styles.verified}>
-          <View style={styles.verifiedDot} />
-          <AppText size="caption" weight="bold" color={Theme.white}>
-            حساب موثّق
           </AppText>
         </View>
       </View>
     </View>
   );
 
-  const people: [string, string, string][] = [
-    [student.guardianName, 'الأب · جهة أساسية', student.guardianPhone],
-    ['سارة أحمد', 'الأم · جهة أساسية', '+9647705021881'],
-  ];
+  // The guardian registered by the administration is the only person the driver hands the child to.
+  const people: [string, string, string][] = [[student.guardianName, 'ولي الأمر · جهة أساسية', student.guardianPhone]];
 
   return (
     <BrandScreen overlap={60} header={header}>
@@ -120,17 +115,6 @@ export default function FamilyScreen() {
               <StudentAvatar student={s} size={36} filled round />
             </View>
           ))}
-        </View>
-        <View style={styles.endAligned}>
-          <AppText size="caption" color={Theme.muted} align="end">
-            حالة الخدمة
-          </AppText>
-          <View style={styles.row4}>
-            <Check size={14} color={Theme.greenDeep} strokeWidth={2.8} />
-            <AppText size="subheadline" weight="bold" color={Theme.greenDeep}>
-              نشطة
-            </AppText>
-          </View>
         </View>
       </View>
 
@@ -211,11 +195,27 @@ export default function FamilyScreen() {
         <MenuRow icon={Bell} title="الإشعارات" tint={Theme.greenDeep} soft={Theme.greenSoft} badge={store.unreadCount} onPress={nav.notifications} />
         <RowDivider inset={56} />
         <MenuRow icon={SlidersHorizontal} title="إعدادات الإشعارات" tint={Theme.muted} soft={Theme.canvas} onPress={nav.notificationSettings} />
+        <RowDivider inset={56} />
+        <MenuRow icon={KeyRound} title="تغيير كلمة المرور" tint={Theme.ink} soft={Theme.blueSoft} onPress={nav.changePassword} />
+        {store.state.support.privacyPolicyUrl ? (
+          <>
+            <RowDivider inset={56} />
+            <MenuRow
+              icon={ShieldCheck}
+              title="سياسة الخصوصية"
+              tint={Theme.muted}
+              soft={Theme.canvas}
+              onPress={() => void Linking.openURL(store.state.support.privacyPolicyUrl)}
+            />
+          </>
+        ) : null}
+        <RowDivider inset={56} />
+        <MenuRow icon={Trash2} title="حذف الحساب" tint={Theme.red} soft={Theme.redSoft} onPress={nav.deleteAccount} />
       </View>
 
       <PrimaryButton title="تسجيل الخروج" icon={LogOut} fill={Theme.redSoft} foreground={Theme.red} onPress={() => setConfirmLogout(true)} />
       <AppText size="caption" color={Theme.muted} align="center">
-        ركاز للنقل العام · الإصدار ١٫٠٫٠
+        {`ركاز للنقل العام · الإصدار ${Fmt.digits(Constants.expoConfig?.version ?? '')}`}
       </AppText>
 
       <ActionSheet
@@ -270,6 +270,8 @@ function ChildCard({ student }: { student: Student }) {
   const nav = useAppNav();
   const [menu, setMenu] = useState(false);
   const sub = store.subscriptionFor(student.id);
+  const age = studentAge(student);
+  const onRoute = student.routeName != null;
   return (
     <View style={[card(16), styles.gap12]}>
       <View style={[styles.row12, styles.alignTop]}>
@@ -279,14 +281,20 @@ function ChildCard({ student }: { student: Student }) {
             {shortName(student)}
           </AppText>
           <AppText size="caption" color={Theme.muted}>
-            {`${student.grade} · ${Fmt.digits(String(studentAge(student)))} سنوات`}
+            {age != null ? `${student.grade} · ${Fmt.digits(String(age))} سنوات` : student.grade}
           </AppText>
-          <View style={[styles.row4, styles.enrolled]}>
-            <View style={styles.greenDot} />
-            <AppText size="caption" weight="semibold" color={Theme.greenDeep}>
-              {student.gender === Gender.female ? 'مسجلة في الرحلة' : 'مسجّل في الرحلة'}
+          {onRoute ? (
+            <View style={[styles.row4, styles.enrolled]}>
+              <View style={styles.greenDot} />
+              <AppText size="caption" weight="semibold" color={Theme.greenDeep}>
+                {student.gender === Gender.female ? 'مسجلة في الرحلة' : 'مسجّل في الرحلة'}
+              </AppText>
+            </View>
+          ) : (
+            <AppText size="caption" weight="semibold" color={Theme.muted}>
+              بانتظار إسناد مسار من الإدارة
             </AppText>
-          </View>
+          )}
         </View>
         <PressableScale accessibilityLabel="خيارات" onPress={() => setMenu(true)} style={styles.menuButton}>
           <Ellipsis size={20} color={Theme.muted} strokeWidth={2.4} />
@@ -295,7 +303,7 @@ function ChildCard({ student }: { student: Student }) {
       <PressableScale scale={0.98} accessibilityLabel="التفاصيل" onPress={() => nav.student(student.id)} style={styles.busStrip}>
         <Bus size={14} color={Theme.ink} />
         <AppText size="caption" weight="medium" style={styles.flex}>
-          {`حافلة ${student.driver.vehicle.plateNumber}`}
+          {student.driver.assigned ? `حافلة ${student.driver.vehicle.busNumber} · ${student.routeName ?? ''}` : 'لم تُحدَّد الحافلة بعد'}
         </AppText>
         <AppText size="caption" weight="bold" color={Theme.gold}>
           التفاصيل
@@ -309,7 +317,7 @@ function ChildCard({ student }: { student: Student }) {
           { label: 'ملف الطالب', icon: IdCard, onPress: () => nav.student(student.id) },
           { label: 'العنوان', icon: MapPinned, onPress: () => nav.address(student.id) },
           {
-            label: `الاشتراك: ${AccountStatusTitle[subscriptionStatus(sub)]}`,
+            label: `الاشتراك: ${sub ? AccountStatusTitle[subscriptionStatus(sub)] : 'غير مسجّل'}`,
             icon: CreditCard,
             onPress: () => {
               store.select(student.id);

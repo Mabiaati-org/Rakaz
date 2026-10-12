@@ -1,11 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { RakazParentNotification } from '@rakaz/contract';
+import type { RakazNotificationPreferences, RakazParentNotification } from '@rakaz/contract';
 
 import type { AuthUser } from '../../common/auth-user.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { type Paginated, PaginationDto } from '../../common/dto/pagination.dto.js';
-import { RegisterDeviceDto, UnregisterDeviceDto } from './dto/register-device.dto.js';
+import { NotificationPreferencesDto, RegisterDeviceDto, UnregisterDeviceDto } from './dto/register-device.dto.js';
 import { NotificationsService } from './notifications.service.js';
 
 @ApiTags('notifications')
@@ -26,6 +26,21 @@ export class NotificationsController {
   async markAllRead(@CurrentUser() user: AuthUser): Promise<null> {
     await this.notifications.markAllRead(user.id);
     return null;
+  }
+
+  @Get('preferences')
+  @ApiOperation({ summary: 'أنواع الإشعارات الموقوفة لدى المستخدم' })
+  getPreferences(@CurrentUser() user: AuthUser): Promise<RakazNotificationPreferences> {
+    return this.notifications.getPreferences(user.id);
+  }
+
+  @Put('preferences')
+  @ApiOperation({ summary: 'تحديث أنواع الإشعارات الموقوفة' })
+  savePreferences(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: NotificationPreferencesDto,
+  ): Promise<RakazNotificationPreferences> {
+    return this.notifications.savePreferences(user.id, dto);
   }
 
   @Put('devices')

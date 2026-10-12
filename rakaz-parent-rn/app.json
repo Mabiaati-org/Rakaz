@@ -10,20 +10,29 @@
     "backgroundColor": "#F3F4F1",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rork.rakaz",
+      "bundleIdentifier": "com.alsultan.rikaz",
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["tel", "whatsapp"],
-        "CFBundleDevelopmentRegion": "ar"
-      }
+        "LSApplicationQueriesSchemes": [
+          "tel",
+          "whatsapp"
+        ],
+        "CFBundleDevelopmentRegion": "ar",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "1"
     },
     "android": {
-      "package": "com.rork.rakaz",
+      "package": "com.alsultan.rikaz",
       "adaptiveIcon": {
         "backgroundColor": "#071D36",
         "foregroundImage": "./assets/images/icon.png"
       },
-      "permissions": ["INTERNET", "POST_NOTIFICATIONS"],
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "INTERNET",
+        "POST_NOTIFICATIONS"
+      ],
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -58,7 +67,9 @@
         {
           "supportsRTL": true,
           "forcesRTL": true,
-          "supportedLocales": ["ar"]
+          "supportedLocales": [
+            "ar"
+          ]
         }
       ],
       [
@@ -66,7 +77,8 @@
         {
           "color": "#C09034"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

@@ -24,6 +24,7 @@ export const RakazHttpPaths = {
     read: (id: string) => p(`/notifications/${enc(id)}/read`),
     readAll: p('/notifications/read-all'),
     remove: (id: string) => p(`/notifications/${enc(id)}`),
+    preferences: p('/notifications/preferences'),
     registerDevice: p('/notifications/devices'),
     unregisterDevice: p('/notifications/devices/unregister'),
   },

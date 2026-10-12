@@ -30,21 +30,14 @@ function isSheet(route: RouteParams): boolean {
   return params != null && 'sheet' in params && params.sheet === '1';
 }
 
-/** Main-shell behaviour from `MainTabView`: simulation, banner and the handover full-screen cover. */
+/** Main-shell behaviour: the notification banner, the handover cover and opening the inbox from a push. */
 function MainShell() {
   const store = useFamily();
   const nav = useAppNav();
   const router = useRouter();
-  const { handoverPending, banner, selectedStudentID, activeKind } = store.state;
-  const { startSimulation, startLiveBackend, stopLiveBackend } = store;
+  const { handoverPending, banner } = store.state;
+  const { refreshNotifications } = store;
   const presented = useRef(false);
-
-  useEffect(() => {
-    startSimulation();
-    startLiveBackend();
-    void NotificationService.requestAuthorization();
-    return () => stopLiveBackend();
-  }, [startSimulation, startLiveBackend, stopLiveBackend, selectedStudentID, activeKind]);
 
   useEffect(() => {
     if (handoverPending && !presented.current) {
@@ -53,6 +46,15 @@ function MainShell() {
     }
     if (!handoverPending) presented.current = false;
   }, [handoverPending, router]);
+
+  useEffect(
+    () =>
+      NotificationService.onOpened(() => {
+        void refreshNotifications(false);
+        router.push({ pathname: '/notifications', params: { sheet: '1' } });
+      }),
+    [refreshNotifications, router],
+  );
 
   if (banner == null) return null;
   return (
@@ -70,8 +72,11 @@ function MainShell() {
 
 function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   const session = useSession();
+  const family = useFamily();
   const ready = fontsLoaded && session.hydrated;
   const signedIn = session.phase === 'main';
+  // The main screens assume a selected student, so they mount only once one is loaded.
+  const hasStudents = family.state.students.length > 0;
   const [splashGone, setSplashGone] = useState(false);
 
   useEffect(() => {
@@ -84,7 +89,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     <View style={styles.root}>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Theme.canvas } }}>
-        <Stack.Protected guard={signedIn}>
+        <Stack.Protected guard={signedIn && hasStudents}>
           <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
           <Stack.Screen name="student/[id]" />
           <Stack.Screen name="address/[id]" />
@@ -93,6 +98,8 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="absences" />
           <Stack.Screen name="finance" />
           <Stack.Screen name="trip/[kind]" />
+          <Stack.Screen name="change-password" />
+          <Stack.Screen name="delete-account" />
           <Stack.Screen name="notifications" options={({ route }) => ({ presentation: isSheet(route) ? 'modal' : 'card' })} />
           <Stack.Screen name="notification-settings" options={({ route }) => ({ presentation: isSheet(route) ? 'modal' : 'card' })} />
           <Stack.Screen name="report-absence" options={{ presentation: 'modal' }} />
@@ -103,11 +110,17 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
           />
           <Stack.Screen name="handover" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', gestureEnabled: false }} />
         </Stack.Protected>
-        <Stack.Protected guard={!signedIn}>
+        <Stack.Protected guard={signedIn && !hasStudents}>
+          <Stack.Screen name="waiting" options={{ animation: 'fade' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={session.phase === 'setPassword'}>
+          <Stack.Screen name="set-password" options={{ animation: 'fade' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={session.phase === 'login' || session.phase === 'splash'}>
           <Stack.Screen name="login" options={{ animation: 'fade' }} />
         </Stack.Protected>
       </Stack>
-      {signedIn ? <MainShell /> : null}
+      {signedIn && hasStudents ? <MainShell /> : null}
       {splashGone ? null : <SplashView onFinish={session.finishSplash} onGone={() => setSplashGone(true)} />}
     </View>
   );

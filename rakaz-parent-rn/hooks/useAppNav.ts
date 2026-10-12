@@ -47,6 +47,12 @@ export function useAppNav() {
       notificationSettings(): void {
         push('/notification-settings');
       },
+      changePassword(): void {
+        push('/change-password');
+      },
+      deleteAccount(): void {
+        push('/delete-account');
+      },
       notifications(): void {
         push('/notifications');
       },

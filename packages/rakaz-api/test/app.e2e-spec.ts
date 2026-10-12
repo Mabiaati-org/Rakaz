@@ -422,6 +422,18 @@ describe('Rakaz API (e2e)', () => {
       expect(mine.body.data[0]).toMatchObject({ status: 'resolved', adminReply: 'تم تعديل وقت المرور' });
     });
 
+    it('remembers which notification kinds a user muted', async () => {
+      const saved = await http()
+        .put(P.notifications.preferences)
+        .set(auth(guardianAToken))
+        .send({ muted: ['payment', 'driverNear'] })
+        .expect(200);
+      expect(saved.body.data.muted.sort()).toEqual(['driverNear', 'payment']);
+      const read = await http().get(P.notifications.preferences).set(auth(guardianAToken)).expect(200);
+      expect(read.body.data.muted.sort()).toEqual(['driverNear', 'payment']);
+      await http().put(P.notifications.preferences).set(auth(guardianAToken)).send({ muted: ['nope'] }).expect(400);
+    });
+
     it('rotates refresh tokens and ends every session when an old one is replayed', async () => {
       const session = await login('07722222222', NEW_PASSWORD);
       const rotated = await http().post(P.auth.refresh).send({ refreshToken: session.refreshToken }).expect(200);

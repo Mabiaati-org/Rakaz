@@ -78,6 +78,25 @@ export default function FinanceScreen() {
   const store = useFamily();
   const router = useRouter();
   const sub = store.subscription;
+  if (sub == null) {
+    return (
+      <DetailScreen title="الاشتراك والمدفوعات" gap={18}>
+        {store.state.students.length > 1 ? (
+          <View style={styles.bleed}>
+            <StudentSwitcher />
+          </View>
+        ) : null}
+        <View style={[card(18, 20), styles.gap4]}>
+          <AppText size="headline" weight="bold">
+            لا يوجد اشتراك مسجّل
+          </AppText>
+          <AppText size="footnote" color={Theme.muted}>
+            {`لم تسجّل الإدارة اشتراكاً لـ ${store.student.firstName} بعد. سيظهر هنا مع الدفعات فور تسجيله.`}
+          </AppText>
+        </View>
+      </DetailScreen>
+    );
+  }
   const status = subscriptionStatus(sub);
   const StatusIcon = AccountStatusIcon[status];
   const days = daysUntilDue(sub);

@@ -6,6 +6,7 @@ import { Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { AppText } from '@/components/AppText';
 import { StudentSwitcher } from '@/components/Brand';
 import { PrimaryButton } from '@/components/Buttons';
+import { FormError } from '@/components/FormError';
 import { DetailScreen } from '@/components/DetailScreen';
 import { PressableScale } from '@/components/PressableScale';
 import { Avatar } from '@/components/Primitives';
@@ -14,6 +15,7 @@ import { Segmented } from '@/components/Segmented';
 import { SentConfirmation } from '@/components/SentConfirmation';
 import { AbsenceReasonIcon } from '@/constants/visuals';
 import { card, plex, TextSizes, Theme, withAlpha } from '@/constants/theme';
+import { useSubmit } from '@/hooks/useSubmit';
 import { useFamily } from '@/store/familyStore';
 import {
   AbsenceReason,
@@ -45,6 +47,7 @@ function upcomingDays(): number[] {
 
 export default function ReportAbsenceScreen() {
   const store = useFamily();
+  const submit = useSubmit();
   const router = useRouter();
   const [day, setDay] = useState(() => startOfDay(Date.now()));
   const [scope, setScope] = useState<AbsenceScope>(AbsenceScope.fullDay);
@@ -70,7 +73,7 @@ export default function ReportAbsenceScreen() {
       ) : (
         <>
           <View style={[card(12, 18), styles.row12]}>
-            <Avatar imageName={student.photoName} initials={student.firstName.charAt(0)} size={46} tint={Theme.gold} />
+            <Avatar initials={student.firstName.charAt(0)} size={46} tint={Theme.gold} />
             <View style={styles.flexGap2}>
               <AppText size="caption" color={Theme.muted}>
                 الطالب
@@ -163,13 +166,16 @@ export default function ReportAbsenceScreen() {
             </AppText>
           </View>
 
+          <FormError message={submit.error} />
           <PrimaryButton
             title="إرسال البلاغ"
             icon={Send}
             fill={Theme.red}
+            loading={submit.busy}
             onPress={() => {
-              store.reportAbsence(day, scope, reason, note);
-              setSent(true);
+              void submit.run(() => store.reportAbsence(day, scope, reason, note)).then((ok) => {
+                if (ok) setSent(true);
+              });
             }}
           />
         </>

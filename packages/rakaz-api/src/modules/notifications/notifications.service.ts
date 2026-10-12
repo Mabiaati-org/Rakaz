@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { RakazParentNotification } from '@rakaz/contract';
+import type { RakazNotificationPreferences, RakazParentNotification } from '@rakaz/contract';
 
 import { ApiError } from '../../common/api-error.js';
 import { Paginated, type PaginationDto } from '../../common/dto/pagination.dto.js';
@@ -52,7 +52,14 @@ export class NotificationsService {
       })),
     });
 
-    void this.push.sendToUsers(ids, {
+    // Muting a kind silences the push only; the inbox above still records it.
+    const recipients = await this.prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, mutedNotificationKinds: true },
+    });
+    const pushIds = recipients.filter((u) => !u.mutedNotificationKinds.split(',').includes(input.kind)).map((u) => u.id);
+
+    void this.push.sendToUsers(pushIds, {
       title: input.title,
       body: input.body,
       data: {
@@ -114,6 +121,18 @@ export class NotificationsService {
       data: { deletedAt: new Date() },
     });
     if (count === 0) throw ApiError.notFound('الإشعار غير موجود');
+  }
+
+  async getPreferences(userId: string): Promise<RakazNotificationPreferences> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { mutedNotificationKinds: true } });
+    const muted = user.mutedNotificationKinds.split(',').filter(Boolean) as NotificationKind[];
+    return { muted: muted.map((kind) => notificationKindMap.toWire(kind)) };
+  }
+
+  async savePreferences(userId: string, preferences: RakazNotificationPreferences): Promise<RakazNotificationPreferences> {
+    const muted = [...new Set(preferences.muted)].map((kind) => notificationKindMap.toDb(kind));
+    await this.prisma.user.update({ where: { id: userId }, data: { mutedNotificationKinds: muted.join(',') } });
+    return this.getPreferences(userId);
   }
 
   /** A device belongs to whoever signed in on it last. */

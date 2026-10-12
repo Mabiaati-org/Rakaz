@@ -4,7 +4,7 @@ import type {
   RakazDeviceRegistration,
 } from './auth';
 import type { ApiFailure, ApiFieldError, ApiPageMeta, ApiResponse, RakazErrorCode } from './envelope';
-import type { RakazParentNotification } from './events';
+import type { RakazNotificationPreferences, RakazParentNotification } from './events';
 import { RakazHttpPaths } from './http';
 
 export interface RakazStoredTokens {
@@ -89,6 +89,8 @@ export interface RakazClient {
     markRead(id: string): Promise<void>;
     markAllRead(): Promise<void>;
     remove(id: string): Promise<void>;
+    getPreferences(): Promise<RakazNotificationPreferences>;
+    savePreferences(preferences: RakazNotificationPreferences): Promise<RakazNotificationPreferences>;
     registerDevice(device: RakazDeviceRegistration): Promise<void>;
     unregisterDevice(token: string): Promise<void>;
   };
@@ -251,6 +253,8 @@ export function createRakazClient(options: RakazClientOptions): RakazClient {
       markRead: (id) => request(P.notifications.read(id), 'POST'),
       markAllRead: () => request(P.notifications.readAll, 'POST'),
       remove: (id) => request(P.notifications.remove(id), 'DELETE'),
+      getPreferences: () => request(P.notifications.preferences),
+      savePreferences: (preferences) => request(P.notifications.preferences, 'PUT', preferences),
       registerDevice: (device) => request(P.notifications.registerDevice, 'PUT', device),
       unregisterDevice: (token) => request(P.notifications.unregisterDevice, 'POST', { token }),
     },

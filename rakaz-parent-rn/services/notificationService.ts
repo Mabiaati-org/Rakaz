@@ -1,5 +1,8 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+
+import { client } from '@/services/api';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -28,28 +31,44 @@ Notifications?.setNotificationHandler({
   }),
 });
 
-/**
- * Bridges trip events to the system notification center.
- * In production these arrive as remote push notifications from the Rakaz backend.
- */
+let registeredToken: string | null = null;
+
+/** Push notifications sent by the Rakaz API as the trip progresses. */
 export const NotificationService = {
-  async requestAuthorization(): Promise<boolean> {
-    if (!Notifications) return false;
+  /** Asks for permission and registers this phone with the API. Quietly does nothing where push is unavailable. */
+  async register(): Promise<void> {
+    if (!Notifications || !Device.isDevice) return;
+    const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
+    if (!projectId) return;
     try {
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'إشعارات الرحلات',
+          importance: Notifications.AndroidImportance.HIGH,
+        });
+      }
       const current = await Notifications.getPermissionsAsync();
-      if (current.granted) return true;
-      const asked = await Notifications.requestPermissionsAsync();
-      return asked.granted;
+      const granted = current.granted || (current.canAskAgain && (await Notifications.requestPermissionsAsync()).granted);
+      if (!granted) return;
+      const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+      await client.notifications.registerDevice({ token: data, platform: Platform.OS === 'ios' ? 'ios' : 'android' });
+      registeredToken = data;
     } catch (error) {
-      console.log('[Notifications] authorization failed:', error);
-      return false;
+      console.log('[Notifications] registration failed:', error);
     }
   },
 
-  post(title: string, body: string): void {
-    if (!Notifications) return;
-    Notifications.scheduleNotificationAsync({ content: { title, body, sound: 'default' }, trigger: null }).catch((error: unknown) => {
-      console.log('[Notifications] post failed:', error);
-    });
+  /** Stops this phone receiving pushes for the account that is signing out. */
+  async unregister(): Promise<void> {
+    const token = registeredToken;
+    registeredToken = null;
+    if (token) await client.notifications.unregisterDevice(token).catch(() => undefined);
+  },
+
+  /** Runs `onOpen` when the user taps a notification; returns the unsubscribe function. */
+  onOpened(onOpen: () => void): () => void {
+    if (!Notifications) return () => undefined;
+    const subscription = Notifications.addNotificationResponseReceivedListener(() => onOpen());
+    return () => subscription.remove();
   },
 };

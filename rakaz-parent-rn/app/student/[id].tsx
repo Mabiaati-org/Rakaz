@@ -30,7 +30,7 @@ export default function StudentProfileScreen() {
     <DetailScreen title="ملف الطالب" gap={18}>
       <View style={styles.hero}>
         <View style={styles.avatarFrame}>
-          <Avatar imageName={s.photoName} initials={s.firstName.charAt(0)} size={108} tint={s.gender === Gender.female ? Theme.gold : Theme.blue} />
+          <Avatar initials={s.firstName.charAt(0)} size={108} tint={s.gender === Gender.female ? Theme.gold : Theme.blue} />
         </View>
         <AppText size="title2" weight="bold" align="center">
           {s.fullName}
@@ -44,10 +44,18 @@ export default function StudentProfileScreen() {
       <View style={card(12)}>
         <InfoRow icon={User} label="الاسم الكامل" value={s.fullName} />
         <RowDivider />
-        <InfoRow icon={Gift} label="تاريخ الميلاد" value={`${Fmt.date(s.birthDate)} (${Fmt.digits(String(studentAge(s)))} سنوات)`} />
-        <RowDivider />
-        <InfoRow icon={s.gender === Gender.female ? UserRound : User} label="الجنس" value={GenderTitle[s.gender]} />
-        <RowDivider />
+        {s.birthDate != null ? (
+          <>
+            <InfoRow icon={Gift} label="تاريخ الميلاد" value={`${Fmt.date(s.birthDate)} (${Fmt.digits(String(studentAge(s)))} سنوات)`} />
+            <RowDivider />
+          </>
+        ) : null}
+        {s.gender != null ? (
+          <>
+            <InfoRow icon={s.gender === Gender.female ? UserRound : User} label="الجنس" value={GenderTitle[s.gender]} />
+            <RowDivider />
+          </>
+        ) : null}
         <InfoRow icon={GraduationCap} label="الصف" value={s.grade} />
         <RowDivider />
         <InfoRow icon={Library} label="المرحلة الدراسية" value={s.stage} />

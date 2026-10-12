@@ -1,6 +1,6 @@
 import type { RakazAuthSession, RakazAuthUser, RakazDeviceRegistration } from './auth';
 import type { ApiFieldError, ApiPageMeta, RakazErrorCode } from './envelope';
-import type { RakazParentNotification } from './events';
+import type { RakazNotificationPreferences, RakazParentNotification } from './events';
 export interface RakazStoredTokens {
     accessToken: string;
     refreshToken: string;
@@ -66,6 +66,8 @@ export interface RakazClient {
         markRead(id: string): Promise<void>;
         markAllRead(): Promise<void>;
         remove(id: string): Promise<void>;
+        getPreferences(): Promise<RakazNotificationPreferences>;
+        savePreferences(preferences: RakazNotificationPreferences): Promise<RakazNotificationPreferences>;
         registerDevice(device: RakazDeviceRegistration): Promise<void>;
         unregisterDevice(token: string): Promise<void>;
     };

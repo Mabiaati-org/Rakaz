@@ -83,7 +83,7 @@ export default function TripsScreen() {
   return (
     <BrandScreen overlap={76} header={header}>
       <ScheduleCard />
-      <SectionTitle title={`خط سير ${student.firstName}`} action="تحديث" actionIcon={RotateCw} onAction={store.restartDemo} />
+      <SectionTitle title={`خط سير ${student.firstName}`} action="تحديث" actionIcon={RotateCw} onAction={() => void store.refreshTrips()} />
       <TripCard kind={TripKind.morning} />
       <TripCard kind={TripKind.afternoon} />
       <Confirmations />

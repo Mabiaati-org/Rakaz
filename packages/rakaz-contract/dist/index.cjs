@@ -178,6 +178,7 @@ var RakazHttpPaths = {
     read: (id) => p(`/notifications/${enc(id)}/read`),
     readAll: p("/notifications/read-all"),
     remove: (id) => p(`/notifications/${enc(id)}`),
+    preferences: p("/notifications/preferences"),
     registerDevice: p("/notifications/devices"),
     unregisterDevice: p("/notifications/devices/unregister")
   },
@@ -379,6 +380,8 @@ function createRakazClient(options) {
       markRead: (id) => request(P.notifications.read(id), "POST"),
       markAllRead: () => request(P.notifications.readAll, "POST"),
       remove: (id) => request(P.notifications.remove(id), "DELETE"),
+      getPreferences: () => request(P.notifications.preferences),
+      savePreferences: (preferences) => request(P.notifications.preferences, "PUT", preferences),
       registerDevice: (device) => request(P.notifications.registerDevice, "PUT", device),
       unregisterDevice: (token) => request(P.notifications.unregisterDevice, "POST", { token })
     }
