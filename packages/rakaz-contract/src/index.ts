@@ -10,3 +10,4 @@ export * from './driver';
 export * from './parent';
 export * from './admin';
 export * from './http';
+export * from './client';

@@ -221,6 +221,8 @@ export const ActionKindTitle: Record<ActionKind, string> = {
 export interface PendingAction {
   id: string;
   kind: ActionKind;
+  /** The leg the driver was on when the action happened; fixed here so a late upload is filed correctly. */
+  tripKind: 'morning' | 'afternoon';
   studentId: string | null;
   timestamp: number;
   location: Coordinate | null;
@@ -235,8 +237,9 @@ export interface AppSnapshot {
   pending: PendingAction[];
   notifications: AdminNotification[];
   lastSyncAt: number | null;
-  simulateOffline: boolean;
   completedTripsTotal: number;
+  /** True while the account still uses the temporary password issued by the administration. */
+  mustChangePassword: boolean;
 }
 
 /** A stop row resolved for display on the active leg. */

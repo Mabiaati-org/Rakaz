@@ -182,6 +182,12 @@ function SyncCard() {
   );
 }
 
+/** How many of today's two legs (morning, return) the driver has started. */
+function legsStartedToday(phase: TripPhase): number {
+  if (phase === TripPhase.IDLE) return 0;
+  return phase === TripPhase.RETURN_TRIP || phase === TripPhase.COMPLETED ? 2 : 1;
+}
+
 export default function DashboardScreen() {
   const { state, derived } = useDriverStore();
   const ui = useUiStore();
@@ -198,7 +204,7 @@ export default function DashboardScreen() {
         <HeroCard />
         <View style={styles.statsRow}>
           <StatTile title="عدد الطلاب" value={state.route.students.length} icon={Users} tint={Rakaz.Gold} />
-          <StatTile title="رحلات اليوم" value={2} icon={Bus} tint={Rakaz.Navy} />
+          <StatTile title="رحلات اليوم" value={legsStartedToday(state.trip.phase)} icon={Bus} tint={Rakaz.Navy} />
         </View>
         <View style={styles.statsRow}>
           <StatTile title="على متن الحافلة" value={derived.onBoardCount} icon={Armchair} tint={Rakaz.Green} />

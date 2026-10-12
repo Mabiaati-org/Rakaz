@@ -28,7 +28,7 @@ export interface DriverState {
   notifications: AdminNotification[];
   lastSyncAt: number | null;
   completedTripsTotal: number;
-  simulateOffline: boolean;
+  mustChangePassword: boolean;
   networkConnected: boolean;
   isSyncing: boolean;
   isChecking: boolean;
@@ -45,7 +45,7 @@ export function initialDriverState(route: Route): DriverState {
     notifications: [],
     lastSyncAt: null,
     completedTripsTotal: 0,
-    simulateOffline: false,
+    mustChangePassword: false,
     networkConnected: true,
     isSyncing: false,
     isChecking: false,
@@ -54,7 +54,7 @@ export function initialDriverState(route: Route): DriverState {
   };
 }
 
-export const isOnline = (s: DriverState): boolean => s.networkConnected && !s.simulateOffline;
+export const isOnline = (s: DriverState): boolean => s.networkConnected;
 
 export const unreadCount = (s: DriverState): number => s.notifications.filter((n) => !n.isRead).length;
 
@@ -110,7 +110,7 @@ export interface DriverDerived {
   routeSubtitle: string;
 }
 
-/** Real GPS fix when near the route; otherwise the last completed stop (demo/emulator friendly). */
+/** Real GPS fix when near the route; otherwise the last completed stop. */
 export function currentPosition(s: DriverState, stops: LegStop[] = legStops(s)): Coordinate {
   const gps = nearbyGps(s);
   if (gps) return gps;

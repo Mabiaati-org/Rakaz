@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { LocationDisclosure } from '@/components/LocationDisclosure';
 import { Toast } from '@/components/Toast';
 import { AbsenceSheet } from '@/components/sheets/AbsenceSheet';
 import { EmergencyActiveScreen } from '@/components/sheets/EmergencyActiveScreen';
@@ -72,6 +73,7 @@ function SheetsHost() {
           if (target) void NavigationLauncher.open(provider, target.coordinate, target.title);
         }}
       />
+      <LocationDisclosure />
       <EmergencyActiveScreen
         visible={store.state.emergencyActive}
         isOnline={store.derived.isOnline}
@@ -86,7 +88,10 @@ function SheetsHost() {
 function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   const store = useDriverStore();
   const ready = fontsLoaded && store.hydrated;
-  const loggedIn = store.state.profile != null;
+  const signedIn = store.state.profile != null;
+  // An account with a temporary password can reach nothing but the screen that replaces it.
+  const needsPassword = signedIn && store.state.mustChangePassword;
+  const loggedIn = signedIn && !needsPassword;
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => undefined);
@@ -102,8 +107,13 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
           <Stack.Screen name="student/[id]" />
           <Stack.Screen name="map" options={{ animation: 'fade_from_bottom' }} />
+          <Stack.Screen name="change-password" />
+          <Stack.Screen name="delete-account" />
         </Stack.Protected>
-        <Stack.Protected guard={!loggedIn}>
+        <Stack.Protected guard={needsPassword}>
+          <Stack.Screen name="set-password" options={{ animation: 'fade' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="login" options={{ animation: 'fade' }} />
         </Stack.Protected>
       </Stack>

@@ -38,6 +38,7 @@ import { FadeSlideIn } from '@/components/FadeSlideIn';
 import { PressableScale } from '@/components/PressableScale';
 import RouteMap from '@/components/RouteMap';
 import { Rakaz, card } from '@/constants/theme';
+import { hasRoute } from '@/services/serverMapping';
 import { useDriverStore } from '@/store/driverStore';
 import { useUiStore } from '@/store/uiStore';
 import { type LegStop, StopStatus, TripLeg, TripPhase, isDone, studentAddress, studentInitials } from '@/types/models';
@@ -424,17 +425,32 @@ export default function TripScreen() {
     <View style={styles.root}>
       <BrandHeader
         subtitle={derived.tripTitle}
-        title={state.route.school.name}
+        title={state.route.school.name || 'ركاز'}
         isOnline={derived.isOnline}
         pendingCount={state.pending.length}
         onMenu={ui.openMenu}
       />
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-        <TripMapCard />
-        <FadeSlideIn key={phaseKey}>
-          <PhaseContent onConfirmEnd={() => setConfirmEnd(true)} />
-        </FadeSlideIn>
-        <PassengerOrderCard />
+        {hasRoute(state.route) ? (
+          <>
+            <TripMapCard />
+            <FadeSlideIn key={phaseKey}>
+              <PhaseContent onConfirmEnd={() => setConfirmEnd(true)} />
+            </FadeSlideIn>
+            <PassengerOrderCard />
+          </>
+        ) : (
+          <View style={[card(), styles.completed]}>
+            <Route color={Rakaz.Gold} size={48} />
+            <AppText variant="titleLarge" style={styles.center}>
+              لم يُسند لك مسار بعد
+            </AppText>
+            <AppText variant="bodyMedium" color={Rakaz.InkSecondary} style={styles.center}>
+              عندما تسند الإدارة مساراً لحسابك سيظهر هنا مع طلابه ومواعيده.
+            </AppText>
+            <BrandButton title="تحديث" icon={CloudUpload} kind="OUTLINE" onPress={() => void store.refresh()} />
+          </View>
+        )}
       </ScrollView>
       <View style={styles.emergencyBar}>
         <PressableScale onPress={ui.openEmergency} accessibilityLabel="حالة طارئة" style={styles.emergencyButton}>

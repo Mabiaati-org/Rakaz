@@ -1,17 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { RakazHttpPaths, type RakazAuthSession, type RakazAuthUser } from '@rakaz/contract';
+import { RakazApiError, type RakazAuthUser } from '@rakaz/contract';
 
-import {
-  api,
-  ApiRequestError,
-  clearSession,
-  currentRefreshToken,
-  hasStoredSession,
-  onSessionLost,
-  publicApi,
-  storeSession,
-} from '@/services/client';
+import { client, hasStoredSession, onSessionLost } from '@/services/client';
 
 interface AuthState {
   /** `undefined` while the stored session is being checked on page load. */
@@ -29,7 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hasStoredSession()) return;
     let cancelled = false;
-    api<RakazAuthUser>(RakazHttpPaths.auth.me)
+    client
+      .me()
       .then((me) => {
         if (!cancelled) setUser(me.role === 'admin' ? me : null);
       })
@@ -44,29 +36,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => onSessionLost(() => setUser(null)), []);
 
   const login = useCallback(async (phone: string, password: string) => {
-    const session = await publicApi<RakazAuthSession>(RakazHttpPaths.auth.login, { phone, password });
+    const session = await client.login(phone, password);
     if (session.user.role !== 'admin') {
-      throw new ApiRequestError('هذا الحساب ليس حساب إدارة. استخدم تطبيق الهاتف.', 403);
+      await client.logout();
+      throw new RakazApiError('هذا الحساب ليس حساب إدارة. استخدم تطبيق الهاتف.', 403);
     }
-    storeSession(session);
     setUser(session.user);
   }, []);
 
   const logout = useCallback(async () => {
-    const refreshToken = currentRefreshToken();
-    clearSession();
     setUser(null);
-    if (refreshToken) {
-      await publicApi(RakazHttpPaths.auth.logout, { refreshToken }).catch(() => undefined);
-    }
+    await client.logout();
   }, []);
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
-    const session = await api<RakazAuthSession>(RakazHttpPaths.auth.changePassword, 'POST', {
-      currentPassword,
-      newPassword,
-    });
-    storeSession(session);
+    const session = await client.changePassword(currentPassword, newPassword);
     setUser(session.user);
   }, []);
 

@@ -1,14 +1,23 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
-import { toDriverLocalStudentId } from '@rakaz/contract';
+import { RakazApiError, rakazErrorText, todayISO } from '@rakaz/contract';
 
-import { SampleData } from '@/data/sampleData';
-import { pullParentAbsences } from '@/services/backend';
+import { client, driverApi, onSessionLost } from '@/services/api';
+import { BusTracking } from '@/services/busTracking';
 import { LocationTracker } from '@/services/location';
 import { NetworkMonitor } from '@/services/network';
 import { PersistenceService } from '@/services/persistence';
+import { Push } from '@/services/push';
 import { ManualRouteOptimizer, NearestNeighborOptimizer } from '@/services/routeOptimizer';
+import {
+  NO_ROUTE,
+  notificationFromServer,
+  profileFromServer,
+  routeFromServer,
+  tripFromServer,
+} from '@/services/serverMapping';
 import { SyncService } from '@/services/sync';
 import {
   ActionKind,
@@ -45,8 +54,15 @@ export interface DriverToast {
 }
 
 export interface DriverActions {
-  login(phone: string, code: string): Promise<string | null>;
+  /** Resolves to an Arabic error message, or null on success. */
+  login(phone: string, password: string): Promise<string | null>;
   logout(): void;
+  /** Resolves to an Arabic error message, or null on success. */
+  changePassword(currentPassword: string, newPassword: string): Promise<string | null>;
+  /** Resolves to an Arabic error message, or null on success. */
+  deleteAccount(password: string): Promise<string | null>;
+  /** Reloads profile, route and notifications from the server. */
+  refresh(): Promise<void>;
   startTrip(): void;
   arrive(studentId: string): void;
   pickUp(studentId: string): void;
@@ -64,7 +80,6 @@ export interface DriverActions {
   applyOptimization(mode: RouteOptimizationMode): void;
   markAllRead(): void;
   markRead(id: string): void;
-  setSimulateOffline(value: boolean): void;
   sync(): void;
   checkConnection(): void;
 }
@@ -77,7 +92,7 @@ export interface DriverStore extends DriverActions {
 }
 
 const now = (): number => Date.now();
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const RETRY_DELAYS_MS = [5_000, 15_000, 45_000, 120_000];
 
 function uuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -94,8 +109,8 @@ function snapshotOf(s: DriverState): AppSnapshot {
     pending: s.pending,
     notifications: s.notifications,
     lastSyncAt: s.lastSyncAt,
-    simulateOffline: s.simulateOffline,
     completedTripsTotal: s.completedTripsTotal,
+    mustChangePassword: s.mustChangePassword,
   };
 }
 
@@ -108,22 +123,33 @@ function fromSnapshot(snap: AppSnapshot): DriverState {
     notifications: snap.notifications,
     lastSyncAt: snap.lastSyncAt,
     completedTripsTotal: snap.completedTripsTotal,
-    simulateOffline: snap.simulateOffline,
+    mustChangePassword: snap.mustChangePassword,
   };
 }
+
+/** A trip that started on an earlier calendar day is over, whatever state the app was left in. */
+const isFromEarlierDay = (startedAt: number | null): boolean =>
+  startedAt != null && todayISO(new Date(startedAt)) !== todayISO();
+
+const tripKindOf = (s: DriverState): 'morning' | 'afternoon' =>
+  currentLeg(s) === TripLeg.AFTERNOON ? 'afternoon' : 'morning';
+
+const isTripRunning = (phase: TripPhase): boolean => phase === TripPhase.MORNING_PICKUP || phase === TripPhase.RETURN_TRIP;
 
 /**
  * Single source of truth for the driver app. Offline-first: every action updates local state,
  * is persisted immediately and queued for sync with the administration backend.
  */
 export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverStore>(() => {
-  const [state, setState] = useState<DriverState>(() => fromSnapshot(SampleData.snapshot()));
+  const [state, setState] = useState<DriverState>(() => initialDriverState(NO_ROUTE));
   const [hydrated, setHydrated] = useState(false);
   const [toast, setToast] = useState<DriverToast | null>(null);
 
   // Mirrors the latest state synchronously so chained actions read fresh values (like StateFlow.value).
   const stateRef = useRef(state);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryAttempt = useRef(0);
   const location = useRef(new LocationTracker()).current;
   const network = useRef(new NetworkMonitor()).current;
 
@@ -163,35 +189,74 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
       });
     };
 
+    /** Clears every trace of the signed-in account from this device. */
+    const resetLocal = (): void => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      void BusTracking.stop();
+      void PersistenceService.clear();
+      update(() => ({ ...initialDriverState(NO_ROUTE), networkConnected: get().networkConnected }));
+    };
+
     const applyParentAbsences = async (): Promise<void> => {
-      const reports = await pullParentAbsences();
+      if (get().profile == null || !isOnline(get())) return;
+      const reports = await SyncService.pullAbsences();
       if (reports.length === 0) return;
       const leg = currentLeg(get());
       const bag = leg === TripLeg.AFTERNOON ? get().trip.afternoon : get().trip.morning;
+      let changed = false;
       for (const report of reports) {
-        const localId = toDriverLocalStudentId(report.studentId);
-        const record = bag[localId];
-        if (record && (record.status === StopStatus.ABSENT || record.status === StopStatus.PICKED_UP || record.status === StopStatus.DROPPED_OFF)) {
-          continue;
-        }
-        const morningOnly = report.scope === 'morningOnly';
-        const returnOnly = report.scope === 'returnOnly';
-        if (morningOnly && leg !== TripLeg.MORNING) continue;
-        if (returnOnly && leg !== TripLeg.AFTERNOON) continue;
-        if (leg == null) continue;
-        mutateRecord(localId, (r) => ({
-          ...r,
-          status: StopStatus.ABSENT,
-          note: report.note || report.reason,
-          completedAt: report.createdAt,
-        }));
+        if (!findStudent(get(), report.studentId)) continue;
+        const record = bag[report.studentId];
+        if (record && record.status !== StopStatus.PENDING) continue;
+        if (report.scope === 'morningOnly' && leg !== TripLeg.MORNING) continue;
+        if (report.scope === 'returnOnly' && leg !== TripLeg.AFTERNOON) continue;
+        mutateRecord(report.studentId, (r) => ({ ...r, status: StopStatus.ABSENT, completedAt: report.createdAt }));
+        changed = true;
       }
+      if (changed) persist();
+    };
+
+    const loadNotifications = async (): Promise<void> => {
+      try {
+        const items = await client.notifications.list();
+        update((s) => ({ ...s, notifications: items.map(notificationFromServer) }));
+        persist();
+      } catch {
+        // Keep showing the cached list while offline.
+      }
+    };
+
+    /** Loads the account's real data. Throws when the server cannot be reached. */
+    const bootstrap = async (): Promise<void> => {
+      const boot = await driverApi.bootstrap();
+      update((s) => {
+        const staleTrip = isFromEarlierDay(s.trip.startedAt);
+        // The device is the source of truth for a trip it is running; the server only fills a blank slate.
+        const trip = s.trip.phase === TripPhase.IDLE || staleTrip ? tripFromServer(boot.today) : s.trip;
+        return {
+          ...s,
+          profile: profileFromServer(boot.profile),
+          route: routeFromServer(boot.route),
+          trip,
+          completedTripsTotal: boot.completedTripsTotal,
+          mustChangePassword: false,
+        };
+      });
       persist();
+      await loadNotifications();
+    };
+
+    const scheduleRetry = (): void => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      const delay = RETRY_DELAYS_MS[Math.min(retryAttempt.current, RETRY_DELAYS_MS.length - 1)] ?? 120_000;
+      retryAttempt.current += 1;
+      retryTimer.current = setTimeout(() => sync(), delay);
     };
 
     const sync = (): void => {
-      void applyParentAbsences();
       const s = get();
+      if (s.profile == null || s.mustChangePassword) return;
+      void applyParentAbsences();
       if (!isOnline(s) || s.isSyncing || s.pending.length === 0) return;
       update((st) => ({ ...st, isSyncing: true }));
       void (async () => {
@@ -200,11 +265,25 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
           await SyncService.send(batch);
           const sent = new Set(batch.map((a) => a.id));
           update((st) => ({ ...st, pending: st.pending.filter((a) => !sent.has(a.id)), lastSyncAt: now() }));
-        } catch {
-          console.warn('Sync: sync failed');
+          retryAttempt.current = 0;
+          // The completed-trips total is counted by the server; pick it up once a leg has ended.
+          if (batch.some((a) => a.kind === ActionKind.END_TRIP || a.kind === ActionKind.START_RETURN)) {
+            void bootstrap().catch(() => undefined);
+          }
+        } catch (error) {
+          // A rejected batch (e.g. the route was unassigned) would block the queue forever; drop it.
+          const rejected = error instanceof RakazApiError && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 429;
+          if (rejected) {
+            const sent = new Set(batch.map((a) => a.id));
+            update((st) => ({ ...st, pending: st.pending.filter((a) => !sent.has(a.id)) }));
+            emit(rakazErrorText(error), 'WARNING');
+          } else {
+            scheduleRetry();
+          }
         }
         update((st) => ({ ...st, isSyncing: false }));
         persist();
+        if (get().pending.length > 0 && retryAttempt.current === 0) sync();
       })();
     };
 
@@ -214,7 +293,7 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
       locationStamp: Coordinate | null = null,
       detail: string | null = null,
     ): void => {
-      const action = { id: uuid(), kind, studentId, timestamp: now(), location: locationStamp, detail };
+      const action = { id: uuid(), kind, tripKind: tripKindOf(get()), studentId, timestamp: now(), location: locationStamp, detail };
       update((s) => ({ ...s, pending: [...s.pending, action] }));
       persist();
       sync();
@@ -223,7 +302,7 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
     const startTrip = (): void => {
       if (get().trip.phase !== TripPhase.IDLE) return;
       update((s) => ({ ...s, trip: { ...s.trip, phase: TripPhase.MORNING_PICKUP, startedAt: now() } }));
-      record(ActionKind.START_TRIP);
+      record(ActionKind.START_TRIP, null, stamp(get().route.depot).coord);
     };
 
     const pickUp = (studentId: string): void => {
@@ -242,30 +321,67 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
     };
 
     return {
-      async login(phone, code) {
-        await delay(900);
-        const digits = phone.replace(/[^0-9٠-٩]/g, '');
-        if (digits.length < 10) return 'رقم الهاتف غير صحيح';
-        if (code.length < 4) return 'رمز الدخول يجب أن يكون ٤ أرقام على الأقل';
-        update((s) => ({ ...s, profile: { ...SampleData.profile, phone: digits } }));
-        notifyHaptic('SUCCESS');
-        persist();
-        return null;
+      async login(phone, password) {
+        try {
+          const session = await client.login(phone, password);
+          if (session.user.role !== 'driver') {
+            await client.logout();
+            return 'هذا الحساب ليس حساب سائق';
+          }
+          if (session.user.mustChangePassword) {
+            // Nothing else is reachable until the temporary password is replaced.
+            update((s) => ({
+              ...s,
+              profile: { id: session.user.uid, name: session.user.name, phone: session.user.phone, busNumber: '', plate: '', adminPhone: '' },
+              mustChangePassword: true,
+            }));
+            persist();
+            return null;
+          }
+          await bootstrap();
+          notifyHaptic('SUCCESS');
+          void Push.register();
+          return null;
+        } catch (error) {
+          return rakazErrorText(error);
+        }
       },
 
       logout() {
-        void PersistenceService.clear();
-        const fresh = SampleData.snapshot();
         notifyHaptic('WARNING');
-        update((s) => ({
-          ...s,
-          profile: null,
-          route: fresh.route,
-          trip: emptyTripState(),
-          pending: [],
-          notifications: fresh.notifications,
-          emergencyActive: false,
-        }));
+        void Push.unregister().then(() => client.logout());
+        resetLocal();
+      },
+
+      async changePassword(currentPassword, newPassword) {
+        try {
+          await client.changePassword(currentPassword, newPassword);
+          await bootstrap();
+          void Push.register();
+          emit('تم تغيير كلمة المرور');
+          return null;
+        } catch (error) {
+          return rakazErrorText(error);
+        }
+      },
+
+      async deleteAccount(password) {
+        try {
+          await client.deleteAccount(password);
+          resetLocal();
+          return null;
+        } catch (error) {
+          return rakazErrorText(error);
+        }
+      },
+
+      async refresh() {
+        if (get().profile == null || get().mustChangePassword) return;
+        try {
+          await bootstrap();
+        } catch {
+          // Offline: keep working from the cached route.
+        }
       },
 
       startTrip,
@@ -281,7 +397,7 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
           isEstimatedLocation: estimated,
         }));
         record(ActionKind.ARRIVED_AT_STOP, studentId, coord);
-        emit('تم تسجيل الوصول · أُبلغ ولي الأمر');
+        emit(isOnline(get()) ? 'تم تسجيل الوصول · أُبلغ ولي الأمر' : 'تم تسجيل الوصول · سيُبلَّغ ولي الأمر عند عودة الاتصال');
       },
 
       pickUp,
@@ -323,17 +439,16 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
         if (get().trip.phase !== TripPhase.AT_SCHOOL) return;
         update((s) => ({ ...s, trip: { ...s.trip, phase: TripPhase.RETURN_TRIP, returnStartedAt: now() } }));
         notifyHaptic('SUCCESS');
-        record(ActionKind.START_RETURN);
+        record(ActionKind.START_RETURN, null, stamp(get().route.school.coordinate).coord);
       },
 
       endTrip() {
         update((s) => ({
           ...s,
           trip: { ...s.trip, phase: TripPhase.COMPLETED, completedAt: now() },
-          completedTripsTotal: s.completedTripsTotal + 1,
         }));
         record(ActionKind.END_TRIP);
-        emit('تم إرسال تقرير الرحلة إلى الإدارة');
+        emit(isOnline(get()) ? 'تم إرسال تقرير الرحلة إلى الإدارة' : 'انتهت الرحلة · سيُرسل التقرير عند عودة الاتصال');
       },
 
       resetForNewDay() {
@@ -374,7 +489,8 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
           .order(route.stops, route.students, route.depot, route.school.coordinate)
           .map((stop, i) => ({ ...stop, pickupTime: pickups[i] ?? stop.pickupTime }));
         update((s) => ({ ...s, route: { ...s.route, stops: ordered, optimizationMode: mode, updatedAt: now() } }));
-        record(ActionKind.REORDER_STOPS, null, null, mode);
+        // The server stores the order itself, so it gets the resulting sequence rather than the mode.
+        record(ActionKind.REORDER_STOPS, null, null, ordered.map((st) => st.studentId).join(','));
         emit(mode === RouteOptimizationMode.AUTOMATIC ? 'تم تحسين الترتيب تلقائياً' : 'تم اعتماد الترتيب يدوياً');
       },
 
@@ -382,18 +498,13 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
         update((s) => ({ ...s, notifications: s.notifications.map((n) => ({ ...n, isRead: true })) }));
         notifyHaptic('SUCCESS');
         persist();
+        void client.notifications.markAllRead().catch(() => undefined);
       },
 
       markRead(id) {
         update((s) => ({ ...s, notifications: s.notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)) }));
         persist();
-      },
-
-      setSimulateOffline(value) {
-        update((s) => ({ ...s, simulateOffline: value }));
-        notifyHaptic(value ? 'WARNING' : 'SUCCESS');
-        persist();
-        if (!value) sync();
+        void client.notifications.markRead(id).catch(() => undefined);
       },
 
       sync,
@@ -404,6 +515,7 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
           const ok = await SyncService.ping();
           update((s) => ({ ...s, isChecking: false }));
           if (ok && isOnline(get())) {
+            retryAttempt.current = 0;
             sync();
             emit(get().pending.length === 0 ? 'الاتصال ممتاز · كل البيانات متزامنة' : 'متصل · جارٍ المزامنة');
           } else {
@@ -414,33 +526,59 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
     };
   }, []);
 
-  // Restore the persisted snapshot, then start connectivity monitoring and flush the queue.
+  // Restore the persisted snapshot, then start connectivity monitoring and refresh from the server.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [snap, connected] = await Promise.all([PersistenceService.load(), network.isConnectedNow()]);
+      const [snap, connected, hasSession] = await Promise.all([
+        PersistenceService.load(),
+        network.isConnectedNow(),
+        client.hasSession(),
+      ]);
       if (cancelled) return;
-      const base = snap ? fromSnapshot(snap) : stateRef.current;
-      stateRef.current = { ...base, networkConnected: connected };
+      // A cached profile without a stored session cannot talk to the server; start signed out.
+      const base = snap && hasSession ? fromSnapshot(snap) : stateRef.current;
+      const trip = isFromEarlierDay(base.trip.startedAt) && base.pending.length === 0 ? emptyTripState() : base.trip;
+      stateRef.current = { ...base, trip, networkConnected: connected };
       setState(stateRef.current);
       setHydrated(true);
       network.start((isConnected) => {
         const wasOnline = isOnline(stateRef.current);
         stateRef.current = { ...stateRef.current, networkConnected: isConnected };
         setState(stateRef.current);
-        if (!wasOnline && isOnline(stateRef.current)) actions.sync();
+        if (!wasOnline && isOnline(stateRef.current)) {
+          retryAttempt.current = 0;
+          actions.sync();
+        }
       });
+      await actions.refresh();
       actions.sync();
+      if (stateRef.current.profile != null && !stateRef.current.mustChangePassword) void Push.register();
     })();
+
+    const offSessionLost = onSessionLost(() => {
+      void BusTracking.stop();
+      void PersistenceService.clear();
+      stateRef.current = { ...initialDriverState(NO_ROUTE), networkConnected: stateRef.current.networkConnected };
+      setState(stateRef.current);
+    });
+    // Coming back to the app is the moment route changes and new absences matter.
+    const appState = AppState.addEventListener('change', (status) => {
+      if (status === 'active') void actions.refresh().then(() => actions.sync());
+    });
+
     return () => {
       cancelled = true;
       network.stop();
+      offSessionLost();
+      appState.remove();
       if (toastTimer.current) clearTimeout(toastTimer.current);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
     };
   }, [actions, network]);
 
   // Ask for location once the driver is signed in, then stream GPS fixes into state.
-  const loggedIn = state.profile != null;
+  const loggedIn = state.profile != null && !state.mustChangePassword;
   useEffect(() => {
     if (!loggedIn) return undefined;
     void (async () => {
@@ -448,10 +586,20 @@ export const [DriverStoreProvider, useDriverStore] = createContextHook<DriverSto
       await location.start((gps) => {
         stateRef.current = { ...stateRef.current, gps };
         setState(stateRef.current);
+        const s = stateRef.current;
+        if (isTripRunning(s.trip.phase)) void BusTracking.reportForegroundFix(tripKindOf(s), gps.latitude, gps.longitude);
       });
     })();
     return () => location.stop();
   }, [loggedIn, location]);
+
+  // Share the bus position for exactly as long as a trip is running.
+  const phase = state.trip.phase;
+  useEffect(() => {
+    if (!loggedIn) return;
+    if (isTripRunning(phase)) void BusTracking.start(phase === TripPhase.RETURN_TRIP ? 'afternoon' : 'morning');
+    else void BusTracking.stop();
+  }, [loggedIn, phase]);
 
   const derived = useMemo(() => deriveDriverState(state), [state]);
 

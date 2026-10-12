@@ -185,18 +185,177 @@ function resolveRakazApiUrl(explicit) {
   if (explicit && explicit.length > 0) return explicit.replace(/\/$/, "");
   return DEFAULT_RAKAZ_API_URL;
 }
+
+// src/client.ts
+var RakazApiError = class extends Error {
+  constructor(message, status, code, errors = []) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.errors = errors;
+    this.name = "RakazApiError";
+  }
+  /** True when the request never got an answer (offline, DNS, timeout). */
+  get isNetworkError() {
+    return this.status === 0;
+  }
+  /** The most specific message to show the user. */
+  get display() {
+    return this.errors[0]?.message ?? this.message;
+  }
+};
+function rakazErrorText(error) {
+  if (error instanceof RakazApiError) return error.display;
+  return error instanceof Error ? error.message : String(error);
+}
+var NETWORK_MESSAGE = "\u062A\u0639\u0630\u0651\u0631 \u0627\u0644\u0627\u062A\u0635\u0627\u0644 \u0628\u0627\u0644\u062E\u0627\u062F\u0645. \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A \u0648\u062D\u0627\u0648\u0644 \u0645\u062C\u062F\u062F\u0627\u064B.";
+var DEFAULT_TIMEOUT_MS = 15e3;
+function createRakazClient(options) {
+  const baseUrl = options.baseUrl.replace(/\/$/, "");
+  const defaultTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const P = RakazHttpPaths;
+  let tokens;
+  let refreshing = null;
+  const loadTokens = async () => {
+    if (tokens === void 0) tokens = await options.storage.load().catch(() => null);
+    return tokens;
+  };
+  const setTokens = async (next) => {
+    tokens = next;
+    await (next ? options.storage.save(next) : options.storage.clear()).catch(() => void 0);
+  };
+  const rawFetch = async (path, init, bearer) => {
+    const timeoutMs = init.timeoutMs ?? defaultTimeout;
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    init.signal?.addEventListener("abort", abort);
+    const timer = timeoutMs > 0 ? setTimeout(abort, timeoutMs) : null;
+    try {
+      return await fetch(`${baseUrl}${path}`, {
+        method: init.method ?? "GET",
+        headers: {
+          Accept: "application/json",
+          ...init.body !== void 0 ? { "Content-Type": "application/json" } : {},
+          ...bearer ? { Authorization: `Bearer ${bearer}` } : {},
+          ...init.headers
+        },
+        body: init.body === void 0 ? void 0 : JSON.stringify(init.body),
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (init.signal?.aborted) throw error;
+      throw new RakazApiError(NETWORK_MESSAGE, 0);
+    } finally {
+      if (timer) clearTimeout(timer);
+      init.signal?.removeEventListener("abort", abort);
+    }
+  };
+  const failureOf = async (response) => {
+    try {
+      const body = await response.json();
+      return new RakazApiError(body.message, response.status, body.code, body.errors ?? []);
+    } catch {
+      return new RakazApiError("\u062D\u062F\u062B \u062E\u0637\u0623 \u063A\u064A\u0631 \u0645\u062A\u0648\u0642\u0639", response.status);
+    }
+  };
+  const unwrap = async (response) => {
+    if (!response.ok) throw await failureOf(response);
+    const body = await response.json();
+    if (!body.success) throw new RakazApiError(body.message, body.statusCode, body.code, body.errors);
+    return { data: body.data, meta: body.meta };
+  };
+  const refresh = () => {
+    refreshing ??= (async () => {
+      const current = await loadTokens();
+      if (!current) return false;
+      try {
+        const response = await rawFetch(P.auth.refresh, { method: "POST", body: { refreshToken: current.refreshToken } }, null);
+        if (!response.ok) {
+          if (response.status === 401) await setTokens(null);
+          return false;
+        }
+        const { data } = await unwrap(response);
+        await setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+        return true;
+      } catch {
+        return false;
+      } finally {
+        refreshing = null;
+      }
+    })();
+    return refreshing;
+  };
+  const authorizedFetch = async (path, init = {}) => {
+    let current = await loadTokens();
+    if (current && !current.accessToken && await refresh()) current = await loadTokens();
+    let response = await rawFetch(path, init, current?.accessToken ?? null);
+    if (response.status === 401 && await loadTokens()) {
+      if (await refresh()) response = await rawFetch(path, init, tokens?.accessToken ?? null);
+    }
+    if (response.status === 401 && current && !await loadTokens()) options.onSessionLost?.();
+    return response;
+  };
+  const request = async (path, method = "GET", body) => (await unwrap(await authorizedFetch(path, { method, body }))).data;
+  const publicRequest = async (path, body) => (await unwrap(await rawFetch(path, { method: "POST", body }, null))).data;
+  const adopt = async (session) => {
+    await setTokens({ accessToken: session.accessToken, refreshToken: session.refreshToken });
+    return session;
+  };
+  return {
+    baseUrl,
+    request,
+    authorizedFetch,
+    async requestPage(path) {
+      const { data, meta } = await unwrap(await authorizedFetch(path));
+      return { items: data, meta };
+    },
+    hasSession: async () => await loadTokens() !== null,
+    login: async (phone, password) => adopt(await publicRequest(P.auth.login, { phone, password })),
+    async logout() {
+      const current = await loadTokens();
+      await setTokens(null);
+      if (current) await publicRequest(P.auth.logout, { refreshToken: current.refreshToken }).catch(() => void 0);
+    },
+    dropSession: () => setTokens(null),
+    me: () => request(P.auth.me),
+    changePassword: async (currentPassword, newPassword) => adopt(await request(P.auth.changePassword, "POST", { currentPassword, newPassword })),
+    async deleteAccount(password) {
+      await request(P.auth.deleteAccount, "DELETE", { password });
+      await setTokens(null);
+    },
+    async ping() {
+      try {
+        const response = await rawFetch(P.health, { timeoutMs: 8e3 }, null);
+        return response.ok;
+      } catch {
+        return false;
+      }
+    },
+    notifications: {
+      list: (page = 1, limit = 50) => request(`${P.notifications.list}?page=${page}&limit=${limit}`),
+      markRead: (id) => request(P.notifications.read(id), "POST"),
+      markAllRead: () => request(P.notifications.readAll, "POST"),
+      remove: (id) => request(P.notifications.remove(id), "DELETE"),
+      registerDevice: (device) => request(P.notifications.registerDevice, "PUT", device),
+      unregisterDevice: (token) => request(P.notifications.unregisterDevice, "POST", { token })
+    }
+  };
+}
 export {
   DEFAULT_RAKAZ_API_URL,
   ParentTripStatus,
   RAKAZ_API_PREFIX,
   RAKAZ_MIN_PASSWORD_LENGTH,
   RakazActionKind,
+  RakazApiError,
   RakazHttpPaths,
   buildTripId,
+  createRakazClient,
   formatIraqiPhoneLocal,
   normalizeIraqiPhone,
   notificationForAction,
   parentStatusFor,
+  rakazErrorText,
   resolveRakazApiUrl,
   toLatinDigits,
   todayISO,

@@ -1,24 +1,39 @@
+import { RakazActionKind, type RakazAbsenceReport, type RakazDriverEventInput } from '@rakaz/contract';
+
+import { client, driverApi } from '@/services/api';
 import type { PendingAction } from '@/types/models';
 
-import { getTripEventWriter, pendingToTripEvents, snapshotFromEvents } from '@/services/backend';
+function toEvent(action: PendingAction): RakazDriverEventInput {
+  return {
+    id: action.id,
+    tripKind: action.tripKind,
+    // The two enums are kept identical by design; the API rejects anything it does not know.
+    action: action.kind as unknown as RakazActionKind,
+    studentId: action.studentId,
+    at: action.timestamp,
+    location: action.location,
+    detail: action.detail,
+    schemaVersion: 1,
+  };
+}
 
-/**
- * Sends queued driver events to the backend.
- * Uses `@rakaz/contract` payloads via services/backend (local stub or Firebase).
- */
+/** Sends queued driver actions to the API. Safe to repeat: the server ignores events it already has. */
 export const SyncService = {
-  async send(actions: PendingAction[]): Promise<number> {
-    const writer = getTripEventWriter();
-    const events = pendingToTripEvents(actions);
-    await writer.writeEvents(events);
-    const snapshot = snapshotFromEvents(events);
-    if (snapshot) {
-      await writer.upsertTrip(snapshot);
-    }
-    return actions.length;
+  async send(actions: PendingAction[]): Promise<void> {
+    if (actions.length === 0) return;
+    await driverApi.sendEvents(actions.map(toEvent));
   },
 
-  async ping(): Promise<boolean> {
-    return getTripEventWriter().ping();
+  ping(): Promise<boolean> {
+    return client.ping();
+  },
+
+  /** Today's guardian absence reports for this driver's route; empty when offline. */
+  async pullAbsences(): Promise<RakazAbsenceReport[]> {
+    try {
+      return await driverApi.absencesToday();
+    } catch {
+      return [];
+    }
   },
 };

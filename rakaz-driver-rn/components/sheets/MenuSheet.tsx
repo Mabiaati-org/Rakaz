@@ -1,6 +1,7 @@
-import { Check, LogOut, Phone, RefreshCw } from 'lucide-react-native';
+import { Check, ChevronLeft, KeyRound, LogOut, Phone, RefreshCw, Trash2 } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import { router } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -60,7 +61,11 @@ export function MenuSheet({ visible, onDismiss, onCall, onLogout }: MenuSheetPro
           inline
           visible={confirmLogout}
           title="تسجيل الخروج؟"
-          message="سيتم حذف البيانات المحلية غير المتزامنة."
+          message={
+            state.pending.length > 0
+              ? `لديك ${ArabicFormat.number(state.pending.length)} إجراءات لم تُرسل للإدارة بعد وستُحذف عند الخروج.`
+              : 'ستحتاج رقم الهاتف وكلمة المرور للدخول من جديد.'
+          }
           confirmTitle="خروج"
           onDismiss={() => setConfirmLogout(false)}
           onConfirm={() => {
@@ -84,26 +89,14 @@ export function MenuSheet({ visible, onDismiss, onCall, onLogout }: MenuSheetPro
       </View>
 
       <MenuGroup title="المسار">
-        <MenuRow label="رمز المسار" value={state.route.code} />
-        <MenuRow label="المدرسة" value={state.route.school.name} />
+        <MenuRow label="رمز المسار" value={state.route.code || '—'} />
+        <MenuRow label="المدرسة" value={state.route.school.name || '—'} />
         <MenuRow label="عدد الطلاب" value={ArabicFormat.number(state.route.students.length)} />
         <MenuRow label="طريقة الترتيب" value={RouteOptimizationModeTitle[state.route.optimizationMode]} />
       </MenuGroup>
 
       <MenuGroup title="العمل دون اتصال">
         <MenuRow label="إجراءات بانتظار المزامنة" value={ArabicFormat.number(state.pending.length)} />
-        <View style={styles.switchRow}>
-          <AppText variant="bodyLarge" style={styles.flex}>
-            محاكاة انقطاع الإنترنت
-          </AppText>
-          <Switch
-            value={state.simulateOffline}
-            onValueChange={store.setSimulateOffline}
-            trackColor={{ true: Rakaz.Gold, false: Rakaz.Line }}
-            thumbColor={Rakaz.White}
-            accessibilityLabel="محاكاة انقطاع الإنترنت"
-          />
-        </View>
         <PressableScale onPress={store.sync} disabled={!canSync} accessibilityLabel="مزامنة الآن" style={[styles.syncRow, !canSync && styles.dim]}>
           <RefreshCw color={Rakaz.Navy} size={20} />
           <AppText variant="labelLarge" color={Rakaz.Navy}>
@@ -142,6 +135,37 @@ export function MenuSheet({ visible, onDismiss, onCall, onLogout }: MenuSheetPro
         </MenuGroup>
       ) : null}
 
+      <MenuGroup title="الحساب">
+        <PressableScale
+          onPress={() => {
+            onDismiss();
+            router.push('/change-password');
+          }}
+          accessibilityLabel="تغيير كلمة المرور"
+          style={styles.linkRow}
+        >
+          <KeyRound color={Rakaz.Navy} size={20} />
+          <AppText variant="bodyLarge" style={styles.flex}>
+            تغيير كلمة المرور
+          </AppText>
+          <ChevronLeft color={Rakaz.InkSecondary} size={18} />
+        </PressableScale>
+        <PressableScale
+          onPress={() => {
+            onDismiss();
+            router.push('/delete-account');
+          }}
+          accessibilityLabel="حذف الحساب"
+          style={styles.linkRow}
+        >
+          <Trash2 color={Rakaz.Red} size={20} />
+          <AppText variant="bodyLarge" color={Rakaz.Red} style={styles.flex}>
+            حذف الحساب
+          </AppText>
+          <ChevronLeft color={Rakaz.InkSecondary} size={18} />
+        </PressableScale>
+      </MenuGroup>
+
       {profile?.adminPhone ? (
         <BrandButton title="الاتصال بالإدارة" icon={Phone} kind="OUTLINE" onPress={() => onCall(profile.adminPhone)} />
       ) : null}
@@ -168,7 +192,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth * 2,
     borderBottomColor: withAlpha(Rakaz.Line, 0.6),
   },
-  switchRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
   syncRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
   logout: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },

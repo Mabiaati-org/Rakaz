@@ -10,15 +10,20 @@
     "backgroundColor": "#F3F1EC",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rork.rakazdriver",
+      "bundleIdentifier": "com.alsultan.rikaz.driver",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "يستخدم ركاز موقعك لتسجيل الوصول والاستلام والتسليم وإبلاغ الإدارة في حالات الطوارئ.",
-        "LSApplicationQueriesSchemes": ["comgooglemaps", "waze", "tel"],
-        "CFBundleDevelopmentRegion": "ar"
-      }
+        "LSApplicationQueriesSchemes": [
+          "comgooglemaps",
+          "waze",
+          "tel"
+        ],
+        "CFBundleDevelopmentRegion": "ar",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "1"
     },
     "android": {
-      "package": "com.rork.rakazdriverandroid",
+      "package": "com.alsultan.rikaz.driver",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/icon.png"
@@ -26,10 +31,15 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS",
         "INTERNET",
         "ACCESS_NETWORK_STATE"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -54,13 +64,27 @@
         {
           "supportsRTL": true,
           "forcesRTL": true,
-          "supportedLocales": ["ar"]
+          "supportedLocales": [
+            "ar"
+          ]
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "يستخدم ركاز موقعك لتسجيل الوصول والاستلام والتسليم وإبلاغ الإدارة في حالات الطوارئ."
+          "locationWhenInUsePermission": "يستخدم ركاز موقعك لعرض موقع الباص على الخريطة وتسجيل الوصول والاستلام والتسليم.",
+          "locationAlwaysAndWhenInUsePermission": "يشارك ركاز موقع الباص مع أولياء الأمور والإدارة طوال الرحلة حتى لو كانت الشاشة مقفلة، ويتوقف عند انتهاء الرحلة.",
+          "locationAlwaysPermission": "يشارك ركاز موقع الباص مع أولياء الأمور والإدارة طوال الرحلة حتى لو كانت الشاشة مقفلة، ويتوقف عند انتهاء الرحلة.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#C09034"
         }
       ]
     ],

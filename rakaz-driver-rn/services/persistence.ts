@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { type AppSnapshot, emptyTripState } from '@/types/models';
 
-const KEY = 'snapshot_v1';
+// v1 held the sample data of the demo build; never read it back.
+const KEY = 'snapshot_v2';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -18,11 +19,13 @@ function decode(raw: string): AppSnapshot | null {
     profile: isRecord(parsed.profile) ? (parsed.profile as unknown as AppSnapshot['profile']) : null,
     route,
     trip: { ...emptyTripState(), ...trip },
-    pending: Array.isArray(parsed.pending) ? (parsed.pending as AppSnapshot['pending']) : [],
+    pending: Array.isArray(parsed.pending)
+      ? (parsed.pending as AppSnapshot['pending']).map((a) => ({ ...a, tripKind: a.tripKind ?? 'morning' }))
+      : [],
     notifications: Array.isArray(parsed.notifications) ? (parsed.notifications as AppSnapshot['notifications']) : [],
     lastSyncAt: typeof parsed.lastSyncAt === 'number' ? parsed.lastSyncAt : null,
-    simulateOffline: parsed.simulateOffline === true,
     completedTripsTotal: typeof parsed.completedTripsTotal === 'number' ? parsed.completedTripsTotal : 0,
+    mustChangePassword: parsed.mustChangePassword === true,
   };
 }
 
