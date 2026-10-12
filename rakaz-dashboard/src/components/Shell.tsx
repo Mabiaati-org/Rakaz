@@ -1,17 +1,23 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
-import { DASHBOARD_BACKEND_MODE } from '@/services/backend';
+import { useAuth } from '@/auth/AuthContext';
 
 const links = [
   { to: '/', label: 'نظرة عامة', end: true },
+  { to: '/trips', label: 'الرحلات الحية' },
   { to: '/students', label: 'الطلاب' },
+  { to: '/guardians', label: 'أولياء الأمور' },
   { to: '/drivers', label: 'السائقون' },
   { to: '/routes', label: 'المسارات' },
-  { to: '/trips', label: 'الرحلات الحية' },
+  { to: '/schools', label: 'المدارس' },
   { to: '/absences', label: 'الغياب' },
+  { to: '/finance', label: 'المالية' },
+  { to: '/tickets', label: 'الدعم' },
+  { to: '/settings', label: 'الإعدادات' },
 ];
 
 export function Shell() {
+  const { user, logout } = useAuth();
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -26,9 +32,11 @@ export function Shell() {
             </NavLink>
           ))}
         </nav>
-        <div className="mode-pill">
-          وضع الربط: <b>{DASHBOARD_BACKEND_MODE}</b>
-          <div>بدّل إلى firebase في services/backend/config.ts بعد تنفيذ الـ stubs.</div>
+        <div className="account-pill">
+          <NavLink to="/account">{user?.name}</NavLink>
+          <button type="button" onClick={() => void logout()}>
+            تسجيل الخروج
+          </button>
         </div>
       </aside>
       <main className="main">

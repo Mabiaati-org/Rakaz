@@ -1,94 +1,130 @@
 import { useState } from 'react';
 
-import type { RakazAdminDriver } from '@rakaz/contract';
+import { formatIraqiPhoneLocal, type RakazAdminDriver, type RakazAdminDriverInput, type RakazIssuedCredentials } from '@rakaz/contract';
 
-import { useAdminApi, useAsyncData } from '@/hooks/useAdmin';
+import { CredentialsDialog, DataState, Field, Notice, PageHead } from '@/components/ui';
+import { useAction, useAsyncData } from '@/hooks/useAsyncData';
+import { adminApi } from '@/services/adminApi';
 
-const emptyDriver = (): RakazAdminDriver => ({
-  uid: `drv-${Date.now().toString().slice(-4)}`,
+const empty = (): RakazAdminDriverInput => ({
   name: '',
   phone: '',
   vehicleLabel: '',
   plateNumber: '',
-  routeId: 'R-204',
+  vehicleModel: '',
+  vehicleColor: '',
+  vehicleCapacity: null,
   active: true,
 });
 
 export function DriversPage() {
-  const api = useAdminApi();
-  const { data, error, reload } = useAsyncData(() => api.listDrivers());
-  const [draft, setDraft] = useState<RakazAdminDriver>(emptyDriver());
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const { data, error, loading, reload } = useAsyncData(() => adminApi.listDrivers());
+  const [draft, setDraft] = useState<RakazAdminDriverInput>(empty());
+  const [editingUid, setEditingUid] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<RakazIssuedCredentials | null>(null);
+  const { busy, notice, run } = useAction();
+  const set = <K extends keyof RakazAdminDriverInput>(key: K, value: RakazAdminDriverInput[K]): void =>
+    setDraft((d) => ({ ...d, [key]: value }));
 
-  const save = async (): Promise<void> => {
-    setSaving(true);
-    setMessage(null);
-    try {
-      await api.upsertDriver(draft);
-      if (draft.routeId) await api.assignDriverToRoute(draft.uid, draft.routeId);
-      setMessage('تم حفظ السائق');
-      setDraft(emptyDriver());
+  const reset = (): void => {
+    setDraft(empty());
+    setEditingUid(null);
+  };
+
+  const save = (): Promise<boolean> =>
+    run(async () => {
+      const result = editingUid ? await adminApi.updateDriver(editingUid, draft) : await adminApi.createDriver(draft);
+      setCredentials(result.credentials);
+      reset();
       reload();
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSaving(false);
-    }
+      return `تم حفظ السائق ${result.driver.name}`;
+    });
+
+  const edit = (d: RakazAdminDriver): void => {
+    setEditingUid(d.uid);
+    setDraft({ ...d, phone: formatIraqiPhoneLocal(d.phone) });
+  };
+
+  const remove = (d: RakazAdminDriver): void => {
+    if (!window.confirm(`حذف حساب السائق «${d.name}»؟`)) return;
+    void run(async () => {
+      await adminApi.deleteDriver(d.uid);
+      reload();
+      return 'تم حذف السائق';
+    });
+  };
+
+  const resetPassword = (d: RakazAdminDriver): void => {
+    if (!window.confirm(`إصدار كلمة مرور مؤقتة جديدة لـ «${d.name}»؟ سيُسجَّل خروجه من كل الأجهزة.`)) return;
+    void run(async () => {
+      setCredentials(await adminApi.resetPassword(d.uid));
+    });
   };
 
   return (
     <section>
-      <div className="page-head">
-        <div>
-          <h1>السائقون</h1>
-          <p>تعيين السائق للمسار يصل لتطبيق السائق عبر الباكند المشترك.</p>
-        </div>
-      </div>
-      {error ? <div className="card empty">{error}</div> : null}
-      {message ? <div className="card">{message}</div> : null}
+      <PageHead title="السائقون" subtitle="إسناد السائق لمسار يتم من صفحة المسارات." />
+      <Notice notice={notice} />
+      <CredentialsDialog credentials={credentials} onClose={() => setCredentials(null)} />
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h2 style={{ marginTop: 0 }}>إضافة / تحديث سائق</h2>
+      <div className="card">
+        <h2>{editingUid ? 'تعديل سائق' : 'إضافة سائق'}</h2>
         <div className="form-grid">
-          <label>
-            المعرف
-            <input value={draft.uid} onChange={(e) => setDraft({ ...draft, uid: e.target.value })} />
-          </label>
-          <label>
-            الاسم
-            <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-          </label>
-          <label>
-            الهاتف
-            <input value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
-          </label>
-          <label>
-            المركبة
-            <input value={draft.vehicleLabel} onChange={(e) => setDraft({ ...draft, vehicleLabel: e.target.value })} />
-          </label>
-          <label>
-            اللوحة
-            <input value={draft.plateNumber} onChange={(e) => setDraft({ ...draft, plateNumber: e.target.value })} />
-          </label>
-          <label>
-            المسار
-            <input value={draft.routeId ?? ''} onChange={(e) => setDraft({ ...draft, routeId: e.target.value || null })} />
-          </label>
+          <Field label="الاسم">
+            <input value={draft.name} onChange={(e) => set('name', e.target.value)} />
+          </Field>
+          <Field label="الهاتف">
+            <input dir="ltr" inputMode="tel" placeholder="07XXXXXXXXX" value={draft.phone} onChange={(e) => set('phone', e.target.value)} />
+          </Field>
+          <Field label="اسم / رقم الباص">
+            <input value={draft.vehicleLabel} onChange={(e) => set('vehicleLabel', e.target.value)} placeholder="باص 17" />
+          </Field>
+          <Field label="رقم اللوحة">
+            <input value={draft.plateNumber} onChange={(e) => set('plateNumber', e.target.value)} />
+          </Field>
+          <Field label="نوع المركبة">
+            <input value={draft.vehicleModel} onChange={(e) => set('vehicleModel', e.target.value)} placeholder="Toyota Coaster" />
+          </Field>
+          <Field label="اللون">
+            <input value={draft.vehicleColor} onChange={(e) => set('vehicleColor', e.target.value)} />
+          </Field>
+          <Field label="عدد المقاعد">
+            <input
+              dir="ltr"
+              type="number"
+              min={1}
+              max={100}
+              value={draft.vehicleCapacity ?? ''}
+              onChange={(e) => set('vehicleCapacity', e.target.value ? Number(e.target.value) : null)}
+            />
+          </Field>
+          <Field label="الحالة">
+            <select value={draft.active ? '1' : '0'} onChange={(e) => set('active', e.target.value === '1')}>
+              <option value="1">مفعّل</option>
+              <option value="0">موقوف</option>
+            </select>
+          </Field>
         </div>
-        <button type="button" className="btn" disabled={saving || !draft.name} onClick={() => void save()}>
-          حفظ السائق
-        </button>
+        <div className="actions">
+          <button type="button" className="btn" disabled={busy || draft.name.trim().length < 2 || !draft.phone.trim() || !draft.vehicleLabel.trim()} onClick={() => void save()}>
+            حفظ
+          </button>
+          {editingUid ? (
+            <button type="button" className="btn secondary" onClick={reset}>
+              إلغاء التعديل
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="card table-wrap">
         <table>
           <thead>
             <tr>
-              <th>المعرف</th>
               <th>الاسم</th>
               <th>الهاتف</th>
-              <th>المركبة</th>
+              <th>الباص</th>
+              <th>اللوحة</th>
               <th>المسار</th>
               <th>الحالة</th>
               <th></th>
@@ -97,27 +133,30 @@ export function DriversPage() {
           <tbody>
             {(data ?? []).map((d) => (
               <tr key={d.uid}>
-                <td>
-                  <code>{d.uid}</code>
-                </td>
                 <td>{d.name}</td>
-                <td>{d.phone}</td>
+                <td dir="ltr">{formatIraqiPhoneLocal(d.phone)}</td>
+                <td>{d.vehicleLabel}</td>
+                <td>{d.plateNumber || '—'}</td>
+                <td>{d.routeId ?? <span className="badge warn">بلا مسار</span>}</td>
                 <td>
-                  {d.vehicleLabel} · {d.plateNumber}
+                  <span className={`badge ${d.active ? 'live' : 'idle'}`}>{d.active ? 'مفعّل' : 'موقوف'}</span>
                 </td>
-                <td>{d.routeId ?? '—'}</td>
-                <td>
-                  <span className={`badge ${d.active ? 'live' : 'idle'}`}>{d.active ? 'نشط' : 'متوقف'}</span>
-                </td>
-                <td>
-                  <button type="button" className="btn secondary" onClick={() => setDraft(d)}>
+                <td className="row-actions">
+                  <button type="button" className="btn secondary" onClick={() => edit(d)}>
                     تعديل
+                  </button>
+                  <button type="button" className="btn secondary" onClick={() => resetPassword(d)}>
+                    كلمة مرور جديدة
+                  </button>
+                  <button type="button" className="btn danger" onClick={() => remove(d)}>
+                    حذف
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        <DataState loading={loading} error={error} empty={!data?.length} />
       </div>
     </section>
   );

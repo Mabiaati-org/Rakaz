@@ -1,108 +1,171 @@
 import { useState } from 'react';
 
-import type { RakazAdminStudent } from '@rakaz/contract';
+import { formatIraqiPhoneLocal, type RakazAdminStudent, type RakazAdminStudentInput, type RakazIssuedCredentials } from '@rakaz/contract';
 
-import { useAdminApi, useAsyncData } from '@/hooks/useAdmin';
+import { CredentialsDialog, DataState, Field, Notice, PageHead } from '@/components/ui';
+import { useAction, useAsyncData } from '@/hooks/useAsyncData';
+import { adminApi } from '@/services/adminApi';
 
-const emptyStudent = (): RakazAdminStudent => ({
-  id: `STU-${Date.now().toString().slice(-5)}`,
-  internalNumber: `RKZ-${Date.now().toString().slice(-5)}`,
+type Draft = RakazAdminStudentInput & { routeId: string | null };
+
+const empty = (schoolId = ''): Draft => ({
+  internalNumber: '',
   fullName: '',
   firstName: '',
-  grade: 'الصف الرابع',
-  schoolId: 'sch-basra-1',
-  schoolName: 'مدارس البصرة الأهلية',
-  routeId: 'R-204',
+  grade: '',
+  stage: '',
+  gender: null,
+  birthDate: null,
+  schoolId,
   guardianName: '',
   guardianPhone: '',
-  home: { latitude: 30.52, longitude: 47.78 },
+  home: { latitude: 30.52, longitude: 47.79 },
+  governorate: '',
+  area: '',
+  neighborhood: '',
+  street: '',
+  landmark: '',
+  accessNotes: '',
+  notes: '',
   active: true,
+  routeId: null,
 });
 
-export function StudentsPage() {
-  const api = useAdminApi();
-  const { data, error, reload } = useAsyncData(() => api.listStudents());
-  const [draft, setDraft] = useState<RakazAdminStudent>(emptyStudent());
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+const toDraft = (s: RakazAdminStudent): Draft => ({ ...s, guardianPhone: formatIraqiPhoneLocal(s.guardianPhone) });
 
-  const save = async (): Promise<void> => {
-    setSaving(true);
-    setMessage(null);
-    try {
-      const firstName = draft.firstName || draft.fullName.split(' ')[0] || draft.fullName;
-      const student = { ...draft, firstName };
-      await api.upsertStudent(student);
-      if (student.routeId) {
-        const sequence = (data?.length ?? 0) + 1;
-        await api.assignStudentToRoute(student.id, student.routeId, sequence);
-      }
-      setMessage('تم حفظ الطالب');
-      setDraft(emptyStudent());
-      reload();
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSaving(false);
-    }
+export function StudentsPage() {
+  const students = useAsyncData(() => adminApi.listStudents());
+  const schools = useAsyncData(() => adminApi.listSchools());
+  const routes = useAsyncData(() => adminApi.listRoutes());
+  const [draft, setDraft] = useState<Draft>(empty());
+  const [credentials, setCredentials] = useState<RakazIssuedCredentials | null>(null);
+  const { busy, notice, run } = useAction();
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]): void => setDraft((d) => ({ ...d, [key]: value }));
+
+  const editing = Boolean(draft.id);
+  const schoolId = draft.schoolId || schools.data?.[0]?.id || '';
+  const valid = draft.fullName.trim().length >= 2 && draft.guardianName.trim().length >= 2 && draft.guardianPhone.trim() && schoolId;
+
+  const save = (): Promise<boolean> =>
+    run(async () => {
+      const { routeId, ...input } = draft;
+      const firstName = input.firstName.trim() || input.fullName.trim().split(/\s+/)[0] || input.fullName;
+      const result = await adminApi.saveStudent({ ...input, firstName, schoolId });
+      if (routeId !== result.student.routeId) await adminApi.assignStudentToRoute(result.student.id, routeId);
+      setCredentials(result.guardianCredentials);
+      setDraft(empty());
+      students.reload();
+      return `تم حفظ الطالب ${result.student.fullName} (${result.student.id})`;
+    });
+
+  const remove = (s: RakazAdminStudent): void => {
+    if (!window.confirm(`حذف الطالب «${s.fullName}»؟`)) return;
+    void run(async () => {
+      await adminApi.deleteStudent(s.id);
+      students.reload();
+      return 'تم حذف الطالب';
+    });
   };
 
   return (
     <section>
-      <div className="page-head">
-        <div>
-          <h1>الطلاب</h1>
-          <p>المعرّفات هنا هي نفسها في تطبيق ولي الأمر والسائق بعد التوحيد.</p>
-        </div>
-      </div>
-      {error ? <div className="card empty">{error}</div> : null}
-      {message ? <div className="card">{message}</div> : null}
+      <PageHead title="الطلاب" subtitle="إضافة طالب تنشئ حساب ولي الأمر تلقائياً إذا لم يكن رقمه مسجّلاً." />
+      <Notice notice={notice} />
+      <CredentialsDialog credentials={credentials} onClose={() => setCredentials(null)} />
+      {schools.data && schools.data.length === 0 ? <div className="alert error">أضف مدرسة أولاً من صفحة المدارس.</div> : null}
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h2 style={{ marginTop: 0 }}>إضافة / تحديث طالب</h2>
+      <div className="card">
+        <h2>{editing ? `تعديل ${draft.id}` : 'إضافة طالب'}</h2>
         <div className="form-grid">
-          <label>
-            المعرف (STU-*)
-            <input value={draft.id} onChange={(e) => setDraft({ ...draft, id: e.target.value })} />
-          </label>
-          <label>
-            الرقم الداخلي
-            <input value={draft.internalNumber} onChange={(e) => setDraft({ ...draft, internalNumber: e.target.value })} />
-          </label>
-          <label>
-            الاسم الكامل
-            <input value={draft.fullName} onChange={(e) => setDraft({ ...draft, fullName: e.target.value })} />
-          </label>
-          <label>
-            الصف
-            <input value={draft.grade} onChange={(e) => setDraft({ ...draft, grade: e.target.value })} />
-          </label>
-          <label>
-            المسار
-            <input value={draft.routeId ?? ''} onChange={(e) => setDraft({ ...draft, routeId: e.target.value || null })} />
-          </label>
-          <label>
-            ولي الأمر
-            <input value={draft.guardianName} onChange={(e) => setDraft({ ...draft, guardianName: e.target.value })} />
-          </label>
-          <label>
-            هاتف ولي الأمر
-            <input value={draft.guardianPhone} onChange={(e) => setDraft({ ...draft, guardianPhone: e.target.value })} />
-          </label>
+          <Field label="الاسم الكامل">
+            <input value={draft.fullName} onChange={(e) => set('fullName', e.target.value)} />
+          </Field>
+          <Field label="الاسم الأول (يظهر في الإشعارات)">
+            <input value={draft.firstName} onChange={(e) => set('firstName', e.target.value)} placeholder="يُؤخذ من الاسم الكامل إن تُرك فارغاً" />
+          </Field>
+          <Field label="الرقم الداخلي">
+            <input value={draft.internalNumber} onChange={(e) => set('internalNumber', e.target.value)} />
+          </Field>
+          <Field label="الجنس">
+            <select value={draft.gender ?? ''} onChange={(e) => set('gender', (e.target.value || null) as Draft['gender'])}>
+              <option value="">غير محدد</option>
+              <option value="male">ذكر</option>
+              <option value="female">أنثى</option>
+            </select>
+          </Field>
+          <Field label="المرحلة">
+            <input value={draft.stage} onChange={(e) => set('stage', e.target.value)} placeholder="الابتدائية" />
+          </Field>
+          <Field label="الصف">
+            <input value={draft.grade} onChange={(e) => set('grade', e.target.value)} placeholder="الصف الرابع" />
+          </Field>
+          <Field label="المدرسة">
+            <select value={schoolId} onChange={(e) => set('schoolId', e.target.value)}>
+              {(schools.data ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="المسار">
+            <select value={draft.routeId ?? ''} onChange={(e) => set('routeId', e.target.value || null)}>
+              <option value="">بدون مسار</option>
+              {(routes.data ?? []).map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name} ({r.id})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="اسم ولي الأمر">
+            <input value={draft.guardianName} onChange={(e) => set('guardianName', e.target.value)} />
+          </Field>
+          <Field label="هاتف ولي الأمر">
+            <input dir="ltr" inputMode="tel" placeholder="07XXXXXXXXX" value={draft.guardianPhone} onChange={(e) => set('guardianPhone', e.target.value)} />
+          </Field>
+          <Field label="المحافظة">
+            <input value={draft.governorate} onChange={(e) => set('governorate', e.target.value)} />
+          </Field>
+          <Field label="المنطقة">
+            <input value={draft.area} onChange={(e) => set('area', e.target.value)} />
+          </Field>
+          <Field label="الشارع">
+            <input value={draft.street} onChange={(e) => set('street', e.target.value)} />
+          </Field>
+          <Field label="أقرب نقطة دالة">
+            <input value={draft.landmark} onChange={(e) => set('landmark', e.target.value)} />
+          </Field>
+          <Field label="خط عرض المنزل">
+            <input dir="ltr" type="number" step="any" value={draft.home.latitude} onChange={(e) => set('home', { ...draft.home, latitude: Number(e.target.value) })} />
+          </Field>
+          <Field label="خط طول المنزل">
+            <input dir="ltr" type="number" step="any" value={draft.home.longitude} onChange={(e) => set('home', { ...draft.home, longitude: Number(e.target.value) })} />
+          </Field>
+          <Field label="ملاحظات للسائق" wide>
+            <input value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
+          </Field>
         </div>
-        <button type="button" className="btn" disabled={saving || !draft.fullName} onClick={() => void save()}>
-          حفظ الطالب
-        </button>
+        <div className="actions">
+          <button type="button" className="btn" disabled={busy || !valid} onClick={() => void save()}>
+            حفظ
+          </button>
+          {editing ? (
+            <button type="button" className="btn secondary" onClick={() => setDraft(empty())}>
+              إلغاء التعديل
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="card table-wrap">
         <table>
           <thead>
             <tr>
-              <th>المعرّف</th>
-              <th>الرقم الداخلي</th>
+              <th>الرمز</th>
               <th>الاسم</th>
               <th>الصف</th>
+              <th>المدرسة</th>
               <th>المسار</th>
               <th>ولي الأمر</th>
               <th>الهاتف</th>
@@ -110,27 +173,33 @@ export function StudentsPage() {
             </tr>
           </thead>
           <tbody>
-            {(data ?? []).map((s) => (
+            {(students.data ?? []).map((s) => (
               <tr key={s.id}>
                 <td>
                   <code>{s.id}</code>
                 </td>
-                <td>{s.internalNumber}</td>
                 <td>{s.fullName}</td>
-                <td>{s.grade}</td>
+                <td>{s.grade || '—'}</td>
+                <td>{s.schoolName}</td>
                 <td>{s.routeId ?? '—'}</td>
-                <td>{s.guardianName}</td>
-                <td>{s.guardianPhone}</td>
                 <td>
-                  <button type="button" className="btn secondary" onClick={() => setDraft(s)}>
+                  {s.guardianName}
+                  {s.guardianUid ? null : <span className="badge warn">بلا حساب</span>}
+                </td>
+                <td dir="ltr">{formatIraqiPhoneLocal(s.guardianPhone)}</td>
+                <td className="row-actions">
+                  <button type="button" className="btn secondary" onClick={() => setDraft(toDraft(s))}>
                     تعديل
+                  </button>
+                  <button type="button" className="btn danger" onClick={() => remove(s)}>
+                    حذف
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {!data?.length && !error ? <div className="empty">لا يوجد طلاب</div> : null}
+        <DataState loading={students.loading} error={students.error} empty={!students.data?.length} />
       </div>
     </section>
   );

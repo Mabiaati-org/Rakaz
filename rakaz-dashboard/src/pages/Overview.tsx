@@ -1,100 +1,93 @@
 import { useState } from 'react';
 
-import { todayISO } from '@rakaz/contract';
+import type { RakazBroadcastInput } from '@rakaz/contract';
 
-import { useAdminApi, useAsyncData } from '@/hooks/useAdmin';
-import { DASHBOARD_BACKEND_MODE, getRakazApiUrl } from '@/services/backend';
+import { Field, Notice, PageHead } from '@/components/ui';
+import { useAction, useAsyncData } from '@/hooks/useAsyncData';
+import { adminApi } from '@/services/adminApi';
+
+const AUDIENCES: Array<{ value: RakazBroadcastInput['audience']; label: string }> = [
+  { value: 'guardians', label: 'أولياء الأمور' },
+  { value: 'drivers', label: 'السائقون' },
+  { value: 'everyone', label: 'الجميع' },
+];
 
 export function OverviewPage() {
-  const api = useAdminApi();
-  const { data, error, reload } = useAsyncData(() => api.getOverview(), []);
+  const overview = useAsyncData(() => adminApi.getOverview());
+  const routes = useAsyncData(() => adminApi.listRoutes());
   const [title, setTitle] = useState('تنبيه من الإدارة');
   const [body, setBody] = useState('');
-  const [notice, setNotice] = useState<string | null>(null);
+  const [audience, setAudience] = useState<RakazBroadcastInput['audience']>('guardians');
+  const [routeId, setRouteId] = useState('');
+  const { busy, notice, run } = useAction();
 
-  const openTrips = async (): Promise<void> => {
-    setNotice(null);
-    try {
-      const result = await api.openDailyTrips({ routeId: 'R-204', dateISO: todayISO() });
-      setNotice(`فُتحت الرحلات: ${result.morningTripId} / ${result.afternoonTripId}`);
-      reload();
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  const broadcast = async (): Promise<void> => {
-    setNotice(null);
-    try {
-      await api.broadcastAdminNotice({ title, body, routeId: 'R-204' });
-      setNotice('أُرسل الإشعار لأولياء أمور المسار');
+  const send = (): Promise<boolean> =>
+    run(async () => {
+      const result = await adminApi.broadcast({ title, body, audience, routeId: routeId || undefined });
       setBody('');
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err));
-    }
-  };
+      return `أُرسل الإشعار إلى ${result.recipients} مستخدم`;
+    });
+
+  const stats: Array<[string, number | undefined]> = [
+    ['رحلات نشطة', overview.data?.activeTrips],
+    ['طلاب في الباص', overview.data?.studentsOnBoard],
+    ['غيابات اليوم', overview.data?.absencesToday],
+    ['بانتظار تأكيد الاستلام', overview.data?.openHandovers],
+    ['بلاغات طارئة اليوم', overview.data?.emergenciesToday],
+    ['تذاكر دعم مفتوحة', overview.data?.openTickets],
+    ['سائقون بلا مسار', overview.data?.unassignedDrivers],
+  ];
 
   return (
     <section>
-      <div className="page-head">
-        <div>
-          <h1>نظرة عامة</h1>
-          <p>
-            وضع الربط: <b>{DASHBOARD_BACKEND_MODE}</b> · API: <code>{getRakazApiUrl()}</code>
-          </p>
-        </div>
-        <button type="button" className="btn" onClick={() => void openTrips()}>
-          فتح رحلات اليوم (R-204)
+      <PageHead title="نظرة عامة" subtitle="مؤشرات اليوم الحالي">
+        <button type="button" className="btn secondary" onClick={overview.reload}>
+          تحديث
         </button>
-      </div>
+      </PageHead>
 
-      {error ? <div className="card empty">{error}</div> : null}
-      {notice ? <div className="card">{notice}</div> : null}
-
+      {overview.error ? <div className="alert error">{overview.error}</div> : null}
       <div className="grid stats">
-        <div className="card stat">
-          <div className="label">رحلات نشطة</div>
-          <div className="value">{data?.activeTrips ?? '—'}</div>
-        </div>
-        <div className="card stat">
-          <div className="label">طلاب في المركبة</div>
-          <div className="value">{data?.studentsOnBoard ?? '—'}</div>
-        </div>
-        <div className="card stat">
-          <div className="label">غيابات اليوم</div>
-          <div className="value">{data?.absencesToday ?? '—'}</div>
-        </div>
-        <div className="card stat">
-          <div className="label">بانتظار الاستلام</div>
-          <div className="value">{data?.openHandovers ?? '—'}</div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h2 style={{ marginTop: 0 }}>بث إشعار إداري</h2>
-        <div className="form-grid">
-          <label>
-            العنوان
-            <input value={title} onChange={(e) => setTitle(e.target.value)} />
-          </label>
-          <label style={{ gridColumn: '1 / -1' }}>
-            النص
-            <input value={body} onChange={(e) => setBody(e.target.value)} placeholder="مثال: عطلة رسمية غداً" />
-          </label>
-        </div>
-        <button type="button" className="btn secondary" disabled={!body.trim()} onClick={() => void broadcast()}>
-          إرسال لمسار R-204
-        </button>
+        {stats.map(([label, value]) => (
+          <div className="card stat" key={label}>
+            <div className="label">{label}</div>
+            <div className="value">{value ?? '—'}</div>
+          </div>
+        ))}
       </div>
 
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>عقد الربط</h2>
-        <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
-          لوحة الإدارة تكتب مصدر الحقيقة عبر <code>rakaz-api</code>. السائق يرسل <code>trip_events</code>، وولي الأمر يستمع إلى{' '}
-          <code>trips</code>، والغياب ينعكس للسائق عند المزامنة. التفاصيل في <code>LINKING.md</code>.
-        </p>
-        <button type="button" className="btn secondary" onClick={reload}>
-          تحديث المؤشرات
+        <h2>إرسال إشعار</h2>
+        <Notice notice={notice} />
+        <div className="form-grid">
+          <Field label="إلى">
+            <select value={audience} onChange={(e) => setAudience(e.target.value as RakazBroadcastInput['audience'])}>
+              {AUDIENCES.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="المسار">
+            <select value={routeId} onChange={(e) => setRouteId(e.target.value)}>
+              <option value="">كل المسارات</option>
+              {(routes.data ?? []).map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name} ({r.id})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="العنوان">
+            <input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
+          </Field>
+          <Field label="النص" wide>
+            <textarea rows={3} maxLength={600} value={body} onChange={(e) => setBody(e.target.value)} placeholder="مثال: عطلة رسمية غداً" />
+          </Field>
+        </div>
+        <button type="button" className="btn" disabled={busy || !title.trim() || !body.trim()} onClick={() => void send()}>
+          إرسال
         </button>
       </div>
     </section>

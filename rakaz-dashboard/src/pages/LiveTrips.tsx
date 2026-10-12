@@ -1,78 +1,117 @@
 import { useEffect, useState } from 'react';
 
-import { ParentTripStatus, type RakazTripSnapshot } from '@rakaz/contract';
+import type { RakazAdminTrip, RakazStopStatus, RakazTripPhase } from '@rakaz/contract';
 
-import { useAdminApi } from '@/hooks/useAdmin';
+import { formatTime, PageHead } from '@/components/ui';
+import { adminApi } from '@/services/adminApi';
+import { errorText } from '@/services/client';
 
-const statusLabel: Record<number, string> = {
-  [ParentTripStatus.notStarted]: 'لم تبدأ',
-  [ParentTripStatus.preparing]: 'استعداد',
-  [ParentTripStatus.driverOnTheWay]: 'في الطريق',
-  [ParentTripStatus.arrivedAtPickup]: 'عند نقطة الاستلام',
-  [ParentTripStatus.studentPickedUp]: 'تم الاستلام',
-  [ParentTripStatus.onTheWayToSchool]: 'إلى الوجهة',
-  [ParentTripStatus.arrivedAtSchool]: 'وصلت',
-  [ParentTripStatus.finished]: 'انتهت',
+const phaseLabel: Record<RakazTripPhase, string> = {
+  notStarted: 'لم تبدأ',
+  inProgress: 'جارية',
+  atSchool: 'وصلت المدرسة',
+  finished: 'انتهت',
 };
 
+const stopLabel: Record<RakazStopStatus, string> = {
+  pending: 'بالانتظار',
+  arrived: 'الباص عند المحطة',
+  pickedUp: 'في الباص',
+  absent: 'غائب',
+  droppedOff: 'تم التوصيل',
+};
+
+const stopBadge: Record<RakazStopStatus, string> = {
+  pending: 'idle',
+  arrived: 'warn',
+  pickedUp: 'live',
+  absent: 'danger',
+  droppedOff: 'live',
+};
+
+const mapsLink = (lat: number, lng: number): string => `https://www.google.com/maps?q=${lat},${lng}`;
+
 export function LiveTripsPage() {
-  const api = useAdminApi();
-  const [trips, setTrips] = useState<RakazTripSnapshot[]>([]);
+  const [trips, setTrips] = useState<RakazAdminTrip[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    try {
-      return api.watchLiveTrips(setTrips);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return undefined;
-    }
-  }, [api]);
+  useEffect(
+    () =>
+      adminApi.watchLiveTrips(
+        (next) => {
+          setTrips(next);
+          setError(null);
+        },
+        (err) => setError(`انقطع البث الحي، جارٍ إعادة الاتصال… (${errorText(err)})`),
+      ),
+    [],
+  );
 
   return (
     <section>
-      <div className="page-head">
-        <div>
-          <h1>الرحلات الحية</h1>
-          <p>بث مباشر من وثائق <code>trips</code> — نفس ما يقرأه ولي الأمر.</p>
+      <PageHead title="الرحلات الحية" subtitle="رحلات اليوم تتحدث تلقائياً مع كل حدث من السائق." />
+      {error ? <div className="alert error">{error}</div> : null}
+      {trips === null && !error ? <div className="card empty">جارٍ الاتصال…</div> : null}
+      {trips?.length === 0 ? <div className="card empty">لا توجد رحلات اليوم بعد. تبدأ الرحلة عند أول حدث من السائق.</div> : null}
+
+      {(trips ?? []).map((trip) => (
+        <div className="card" key={trip.tripId}>
+          <div className="card-head">
+            <h2>
+              {trip.routeName} · {trip.tripKind === 'morning' ? 'ذهاب' : 'عودة'}
+            </h2>
+            <span className={`badge ${trip.phase === 'inProgress' ? 'live' : 'idle'}`}>{phaseLabel[trip.phase]}</span>
+          </div>
+          <p className="muted">
+            {trip.driverName ?? 'بدون سائق'}
+            {trip.vehicleLabel ? ` · ${trip.vehicleLabel}` : ''}
+            {trip.startedAt ? ` · بدأت ${formatTime(trip.startedAt)}` : ''}
+            {trip.endedAt ? ` · انتهت ${formatTime(trip.endedAt)}` : ''}
+            {trip.busLocation ? (
+              <>
+                {' · '}
+                <a className="link" href={mapsLink(trip.busLocation.latitude, trip.busLocation.longitude)} target="_blank" rel="noreferrer">
+                  موقع الباص{trip.busUpdatedAt ? ` (${formatTime(trip.busUpdatedAt)})` : ''}
+                </a>
+              </>
+            ) : null}
+          </p>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الطالب</th>
+                  <th>الحالة</th>
+                  <th>الوقت</th>
+                  <th>تأكيد الاستلام</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trip.students.map((s) => (
+                  <tr key={s.studentId}>
+                    <td>{s.studentName}</td>
+                    <td>
+                      <span className={`badge ${stopBadge[s.status]}`}>{stopLabel[s.status]}</span>
+                    </td>
+                    <td>{s.completedAt ? formatTime(s.completedAt) : s.arrivedAt ? formatTime(s.arrivedAt) : '—'}</td>
+                    <td>
+                      {s.handoverIssue ? (
+                        <span className="badge danger">بلاغ مشكلة</span>
+                      ) : s.handoverPending ? (
+                        <span className="badge warn">بانتظار ولي الأمر</span>
+                      ) : s.handoverConfirmedAt ? (
+                        <span className="badge live">مؤكد {formatTime(s.handoverConfirmedAt)}</span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-      {error ? <div className="card empty">{error}</div> : null}
-      <div className="card table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>الرحلة</th>
-              <th>النوع</th>
-              <th>المسار</th>
-              <th>الحالة</th>
-              <th>التقدم</th>
-              <th>الاستلام</th>
-              <th>آخر تحديث</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trips.map((trip) => (
-              <tr key={trip.tripId}>
-                <td>
-                  <code>{trip.tripId}</code>
-                </td>
-                <td>{trip.tripKind === 'morning' ? 'ذهاب' : 'عودة'}</td>
-                <td>{trip.routeId}</td>
-                <td>
-                  <span className={`badge ${trip.status > 0 && trip.status < 7 ? 'live' : 'idle'}`}>
-                    {statusLabel[trip.status] ?? trip.status}
-                  </span>
-                </td>
-                <td>{Math.round(trip.progress * 100)}%</td>
-                <td>{trip.handoverPending ? <span className="badge warn">بانتظار التأكيد</span> : '—'}</td>
-                <td>{new Date(trip.updatedAt).toLocaleTimeString('ar-IQ')}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!trips.length && !error ? <div className="empty">لا توجد رحلات حية — افتح رحلات اليوم من النظرة العامة</div> : null}
-      </div>
+      ))}
     </section>
   );
 }

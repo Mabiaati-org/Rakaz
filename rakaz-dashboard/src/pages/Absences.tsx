@@ -1,24 +1,38 @@
-import { useAdminApi, useAsyncData } from '@/hooks/useAdmin';
+import { useState } from 'react';
 
-const scopeTitle: Record<string, string> = {
+import { todayISO, type RakazAbsenceReport } from '@rakaz/contract';
+
+import { DataState, formatDateTime, PageHead } from '@/components/ui';
+import { useAsyncData } from '@/hooks/useAsyncData';
+import { adminApi } from '@/services/adminApi';
+
+const scopeLabel: Record<RakazAbsenceReport['scope'], string> = {
   fullDay: 'اليوم كاملاً',
   morningOnly: 'الذهاب فقط',
   returnOnly: 'العودة فقط',
 };
 
+const reasonLabel: Record<RakazAbsenceReport['reason'], string> = {
+  none: '—',
+  sick: 'مرض',
+  family: 'ظرف عائلي',
+  travel: 'سفر',
+  appointment: 'موعد',
+  other: 'أخرى',
+};
+
 export function AbsencesPage() {
-  const api = useAdminApi();
-  const { data, error } = useAsyncData(() => api.listAbsencesToday());
+  const [dateISO, setDateISO] = useState(todayISO());
+  const { data, error, loading, reload } = useAsyncData(() => adminApi.listAbsences({ dateISO }), [dateISO]);
 
   return (
     <section>
-      <div className="page-head">
-        <div>
-          <h1>الغياب</h1>
-          <p>بلاغات ولي الأمر من مجموعة <code>absences</code> — تظهر أيضاً للسائق.</p>
-        </div>
-      </div>
-      {error ? <div className="card empty">{error}</div> : null}
+      <PageHead title="الغياب" subtitle="بلاغات أولياء الأمور. تصل للسائق تلقائياً.">
+        <input className="cell-input" type="date" value={dateISO} onChange={(e) => setDateISO(e.target.value || todayISO())} />
+        <button type="button" className="btn secondary" onClick={reload}>
+          تحديث
+        </button>
+      </PageHead>
       <div className="card table-wrap">
         <table>
           <thead>
@@ -27,24 +41,28 @@ export function AbsencesPage() {
               <th>النطاق</th>
               <th>السبب</th>
               <th>ملاحظة</th>
-              <th>الوقت</th>
+              <th>وقت البلاغ</th>
+              <th>السائق</th>
             </tr>
           </thead>
           <tbody>
             {(data ?? []).map((a) => (
               <tr key={a.id}>
                 <td>
-                  <code>{a.studentId}</code>
+                  {a.studentName} <code>{a.studentId}</code>
                 </td>
-                <td>{scopeTitle[a.scope] ?? a.scope}</td>
-                <td>{a.reason}</td>
+                <td>{scopeLabel[a.scope]}</td>
+                <td>{reasonLabel[a.reason]}</td>
                 <td>{a.note || '—'}</td>
-                <td>{new Date(a.createdAt).toLocaleTimeString('ar-IQ')}</td>
+                <td>{formatDateTime(a.createdAt)}</td>
+                <td>
+                  <span className={`badge ${a.seenByDriverAt ? 'live' : 'idle'}`}>{a.seenByDriverAt ? 'اطّلع' : 'لم يطّلع بعد'}</span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {!data?.length && !error ? <div className="empty">لا غيابات اليوم</div> : null}
+        <DataState loading={loading} error={error} empty={!data?.length} />
       </div>
     </section>
   );
