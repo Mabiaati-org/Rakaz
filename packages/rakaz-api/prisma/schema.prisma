@@ -1,0 +1,509 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  ADMIN
+  DRIVER
+  GUARDIAN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum TripKind {
+  MORNING
+  AFTERNOON
+}
+
+enum TripPhase {
+  NOT_STARTED
+  IN_PROGRESS
+  AT_SCHOOL
+  FINISHED
+}
+
+enum StopStatus {
+  PENDING
+  ARRIVED
+  PICKED_UP
+  ABSENT
+  DROPPED_OFF
+}
+
+enum ActionKind {
+  START_TRIP
+  ARRIVED_AT_STOP
+  PICKED_UP
+  MARKED_ABSENT
+  ARRIVED_AT_SCHOOL
+  START_RETURN
+  DROPPED_OFF
+  END_TRIP
+  EMERGENCY
+  REORDER_STOPS
+}
+
+enum AbsenceScope {
+  FULL_DAY
+  MORNING_ONLY
+  RETURN_ONLY
+}
+
+enum AbsenceReason {
+  NONE
+  SICK
+  FAMILY
+  TRAVEL
+  APPOINTMENT
+  OTHER
+}
+
+enum NotificationKind {
+  TRIP_REMINDER
+  TRIP_STARTED
+  DRIVER_NEAR
+  PICKED_UP
+  ARRIVED_SCHOOL
+  RETURN_STARTED
+  DELIVERED
+  PAYMENT
+  DELAY
+  ADMIN
+  ROUTE_CHANGE
+  EMERGENCY
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  ZAIN_CASH
+  BANK_TRANSFER
+}
+
+enum TicketKind {
+  COMPLAINT
+  FEEDBACK
+}
+
+enum TicketTopic {
+  DRIVER
+  TIMING
+  VEHICLE
+  PAYMENT
+  APP
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  /// E.164, e.g. +9647701234567
+  phone               String    @unique
+  passwordHash        String
+  name                String
+  role                Role
+  active              Boolean   @default(true)
+  mustChangePassword  Boolean   @default(true)
+  lastLoginAt         DateTime?
+  deletionRequestedAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  driverProfile DriverProfile?
+  route         Route?
+  students      Student[]
+  refreshTokens RefreshToken[]
+  deviceTokens  DeviceToken[]
+  notifications Notification[]
+  tickets       SupportTicket[]
+
+  @@index([role, deletedAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  /// SHA-256 of the opaque token handed to the client.
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model DeviceToken {
+  id        String         @id @default(cuid())
+  userId    String
+  token     String         @unique
+  platform  DevicePlatform
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model DriverProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  vehicleLabel    String
+  plateNumber     String
+  vehicleModel    String    @default("")
+  vehicleColor    String    @default("")
+  vehicleCapacity Int?
+  hiredAt         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model School {
+  id            String    @id @default(cuid())
+  name          String
+  address       String
+  locationLabel String    @default("")
+  lat           Float
+  lng           Float
+  phone         String    @default("")
+  /// HH:mm
+  startTime     String    @default("07:45")
+  /// HH:mm
+  endTime       String    @default("13:15")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  students Student[]
+  routes   Route[]
+}
+
+model Route {
+  id        String    @id @default(cuid())
+  /// Public code, e.g. R-204
+  code      String    @unique
+  name      String
+  schoolId  String
+  driverId  String?   @unique
+  depotLat  Float?
+  depotLng  Float?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  school   School      @relation(fields: [schoolId], references: [id])
+  driver   User?       @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  students Student[]
+  stops    RouteStop[]
+  trips    Trip[]
+
+  @@index([schoolId])
+}
+
+model Student {
+  id             String    @id @default(cuid())
+  /// Public code, e.g. STU-24031
+  code           String    @unique
+  internalNumber String    @default("")
+  fullName       String
+  firstName      String
+  grade          String    @default("")
+  stage          String    @default("")
+  gender         Gender?
+  birthDate      DateTime? @db.Date
+  schoolId       String
+  routeId        String?
+  guardianId     String?
+  guardianName   String
+  /// E.164
+  guardianPhone  String
+  governorate    String    @default("")
+  area           String    @default("")
+  neighborhood   String    @default("")
+  street         String    @default("")
+  landmark       String    @default("")
+  accessNotes    String    @default("")
+  homeLat        Float
+  homeLng        Float
+  notes          String    @default("") @db.VarChar(1000)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  school        School         @relation(fields: [schoolId], references: [id])
+  route         Route?         @relation(fields: [routeId], references: [id], onDelete: SetNull)
+  guardian      User?          @relation(fields: [guardianId], references: [id], onDelete: SetNull)
+  stop          RouteStop?
+  tripStates    TripStudent[]
+  absences      Absence[]
+  handovers     Handover[]
+  subscriptions Subscription[]
+  payments      Payment[]
+
+  @@index([schoolId])
+  @@index([routeId])
+  @@index([guardianId])
+}
+
+model RouteStop {
+  id          String   @id @default(cuid())
+  routeId     String
+  studentId   String   @unique
+  sequence    Int
+  /// HH:mm
+  pickupTime  String   @default("07:00")
+  /// HH:mm
+  dropoffTime String   @default("13:30")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  route   Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([routeId, sequence])
+}
+
+model Trip {
+  id              String    @id @default(cuid())
+  /// Public code, e.g. TRIP-2026-10-07-R-204-MORNING
+  code            String    @unique
+  routeId         String
+  kind            TripKind
+  /// Calendar day in the school timezone, stored at UTC midnight.
+  date            DateTime  @db.Date
+  phase           TripPhase @default(NOT_STARTED)
+  driverId        String?
+  vehicleLabel    String?
+  startedAt       DateTime?
+  arrivedSchoolAt DateTime?
+  endedAt         DateTime?
+  busLat          Float?
+  busLng          Float?
+  busUpdatedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  route     Route          @relation(fields: [routeId], references: [id])
+  students  TripStudent[]
+  events    TripEvent[]
+  pings     LocationPing[]
+  handovers Handover[]
+
+  @@unique([routeId, date, kind])
+  @@index([date])
+}
+
+model TripStudent {
+  id                  String     @id @default(cuid())
+  tripId              String
+  studentId           String
+  status              StopStatus @default(PENDING)
+  arrivedAt           DateTime?
+  completedAt         DateTime?
+  note                String     @default("")
+  handoverPending     Boolean    @default(false)
+  handoverConfirmedAt DateTime?
+  handoverIssue       Boolean    @default(false)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, studentId])
+  @@index([studentId])
+}
+
+model TripEvent {
+  /// Client-generated uuid, so retried uploads stay idempotent.
+  id            String     @id
+  tripId        String
+  action        ActionKind
+  /// Student public code, or null for trip-level actions.
+  studentCode   String?
+  at            DateTime
+  lat           Float?
+  lng           Float?
+  detail        String?    @db.Text
+  driverId      String?
+  schemaVersion Int        @default(1)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, at])
+  @@index([action, at])
+}
+
+model LocationPing {
+  id        String   @id @default(cuid())
+  tripId    String
+  lat       Float
+  lng       Float
+  speed     Float?
+  heading   Float?
+  at        DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, at])
+  @@index([at])
+}
+
+model Absence {
+  id             String        @id @default(cuid())
+  studentId      String
+  /// Calendar day in the school timezone, stored at UTC midnight.
+  day            DateTime      @db.Date
+  scope          AbsenceScope
+  reason         AbsenceReason @default(NONE)
+  note           String        @default("") @db.VarChar(500)
+  guardianId     String?
+  seenByDriverAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, day])
+  @@index([day])
+}
+
+model Handover {
+  id            String   @id @default(cuid())
+  tripId        String
+  studentId     String
+  confirmed     Boolean
+  issueReported Boolean  @default(false)
+  at            DateTime
+  guardianId    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([studentId])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  kind        NotificationKind
+  title       String
+  body        String           @db.Text
+  /// Student public code, when the notification is about one child.
+  studentCode String?
+  /// Trip public code, when the notification is about one trip.
+  tripCode    String?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Subscription {
+  id          String    @id @default(cuid())
+  studentId   String
+  periodTitle String
+  /// Whole Iraqi dinars.
+  monthlyFee  Int
+  yearlyFee   Int?
+  dueAmount   Int
+  dueDate     DateTime
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  student  Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([studentId, active])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  /// Receipt number, e.g. TX-100458
+  code           String        @unique
+  subscriptionId String
+  studentId      String
+  amount         Int
+  paidAt         DateTime
+  method         PaymentMethod
+  note           String        @default("")
+  recordedById   String?
+  recordedByName String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, paidAt])
+}
+
+model SupportTicket {
+  id         String       @id @default(cuid())
+  /// Short reference shown to the guardian, e.g. #4821
+  code       String       @unique
+  userId     String
+  kind       TicketKind
+  topic      TicketTopic
+  body       String       @db.Text
+  status     TicketStatus @default(OPEN)
+  adminReply String?      @db.Text
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AppSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

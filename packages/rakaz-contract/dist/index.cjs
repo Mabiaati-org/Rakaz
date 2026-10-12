@@ -21,66 +21,24 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var index_exports = {};
 __export(index_exports, {
   DEFAULT_RAKAZ_API_URL: () => DEFAULT_RAKAZ_API_URL,
-  DEMO_STUDENT_ID_BRIDGE: () => DEMO_STUDENT_ID_BRIDGE,
-  FirestorePaths: () => FirestorePaths,
   ParentTripStatus: () => ParentTripStatus,
+  RAKAZ_API_PREFIX: () => RAKAZ_API_PREFIX,
+  RAKAZ_MIN_PASSWORD_LENGTH: () => RAKAZ_MIN_PASSWORD_LENGTH,
   RakazActionKind: () => RakazActionKind,
   RakazHttpPaths: () => RakazHttpPaths,
-  SUGGESTED_INDEXES: () => SUGGESTED_INDEXES,
   buildTripId: () => buildTripId,
-  mapDriverActionToParent: () => mapDriverActionToParent,
+  formatIraqiPhoneLocal: () => formatIraqiPhoneLocal,
+  normalizeIraqiPhone: () => normalizeIraqiPhone,
+  notificationForAction: () => notificationForAction,
+  parentStatusFor: () => parentStatusFor,
   resolveRakazApiUrl: () => resolveRakazApiUrl,
-  statusAfterPickup: () => statusAfterPickup,
-  toCanonicalStudentId: () => toCanonicalStudentId,
-  toDriverLocalStudentId: () => toDriverLocalStudentId,
-  todayISO: () => todayISO
+  toLatinDigits: () => toLatinDigits,
+  todayISO: () => todayISO,
+  tripStatusForPhase: () => tripStatusForPhase
 });
 module.exports = __toCommonJS(index_exports);
 
 // src/ids.ts
-var DEMO_STUDENT_ID_BRIDGE = [
-  {
-    driverLocalId: "st-1",
-    canonicalId: "STU-24031",
-    parentLocalId: "STU-24031",
-    note: "Demo only \u2014 names differ between apps until admin data is unified"
-  },
-  {
-    driverLocalId: "st-2",
-    canonicalId: "STU-24032",
-    parentLocalId: "STU-24032",
-    note: "Demo only"
-  },
-  {
-    driverLocalId: "st-3",
-    canonicalId: "STU-24033",
-    parentLocalId: "STU-24033",
-    note: "Demo bridge for driver sample st-3"
-  },
-  {
-    driverLocalId: "st-4",
-    canonicalId: "STU-24034",
-    parentLocalId: "STU-24034",
-    note: "Demo bridge for driver sample st-4"
-  },
-  {
-    driverLocalId: "st-5",
-    canonicalId: "STU-24035",
-    parentLocalId: "STU-24035",
-    note: "Demo bridge for driver sample st-5"
-  }
-];
-var driverToCanonical = new Map(DEMO_STUDENT_ID_BRIDGE.map((row) => [row.driverLocalId, row.canonicalId]));
-var parentToCanonical = new Map(DEMO_STUDENT_ID_BRIDGE.map((row) => [row.parentLocalId, row.canonicalId]));
-var canonicalToDriver = new Map(DEMO_STUDENT_ID_BRIDGE.map((row) => [row.canonicalId, row.driverLocalId]));
-function toCanonicalStudentId(localId) {
-  if (!localId) return null;
-  if (localId.startsWith("STU-")) return localId;
-  return driverToCanonical.get(localId) ?? parentToCanonical.get(localId) ?? localId;
-}
-function toDriverLocalStudentId(canonicalId) {
-  return canonicalToDriver.get(canonicalId) ?? canonicalId;
-}
 function buildTripId(params) {
   const kind = params.tripKind === "morning" ? "MORNING" : "AFTERNOON";
   return `TRIP-${params.dateISO}-${params.routeId}-${kind}`;
@@ -91,6 +49,34 @@ function todayISO(now = /* @__PURE__ */ new Date()) {
   const d = String(now.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+// src/phone.ts
+var ARABIC_DIGITS = "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669";
+var PERSIAN_DIGITS = "\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9";
+function toLatinDigits(raw) {
+  let out = "";
+  for (const ch of raw) {
+    const a = ARABIC_DIGITS.indexOf(ch);
+    const p2 = PERSIAN_DIGITS.indexOf(ch);
+    out += a >= 0 ? String(a) : p2 >= 0 ? String(p2) : ch;
+  }
+  return out;
+}
+function normalizeIraqiPhone(raw) {
+  if (!raw) return null;
+  let d = toLatinDigits(raw).replace(/\D/g, "");
+  if (d.startsWith("00964")) d = d.slice(5);
+  else if (d.startsWith("964")) d = d.slice(3);
+  if (d.startsWith("0")) d = d.slice(1);
+  if (d.length !== 10 || !d.startsWith("7")) return null;
+  return `+964${d}`;
+}
+function formatIraqiPhoneLocal(e164) {
+  return e164.startsWith("+964") ? `0${e164.slice(4)}` : e164;
+}
+
+// src/auth.ts
+var RAKAZ_MIN_PASSWORD_LENGTH = 8;
 
 // src/events.ts
 var RakazActionKind = /* @__PURE__ */ ((RakazActionKind2) => {
@@ -118,136 +104,122 @@ var ParentTripStatus = {
   arrivedAtSchool: 6,
   finished: 7
 };
-function mapDriverActionToParent(action, tripKind) {
+function tripStatusForPhase(phase) {
+  switch (phase) {
+    case "notStarted":
+      return ParentTripStatus.notStarted;
+    case "inProgress":
+      return ParentTripStatus.driverOnTheWay;
+    case "atSchool":
+      return ParentTripStatus.arrivedAtSchool;
+    case "finished":
+      return ParentTripStatus.finished;
+  }
+}
+function parentStatusFor(tripKind, phase, stop) {
+  if (phase === "notStarted" || stop === "absent") return ParentTripStatus.notStarted;
+  if (phase === "finished") return ParentTripStatus.finished;
+  if (tripKind === "morning") {
+    if (phase === "atSchool") {
+      return stop === "pickedUp" ? ParentTripStatus.arrivedAtSchool : ParentTripStatus.finished;
+    }
+    if (stop === "pickedUp") return ParentTripStatus.onTheWayToSchool;
+    if (stop === "arrived") return ParentTripStatus.arrivedAtPickup;
+    return ParentTripStatus.driverOnTheWay;
+  }
+  if (stop === "droppedOff") return ParentTripStatus.arrivedAtSchool;
+  return ParentTripStatus.onTheWayToSchool;
+}
+function notificationForAction(action, tripKind) {
   const morning = tripKind === "morning";
   switch (action) {
     case "START_TRIP" /* START_TRIP */:
-      return {
-        status: ParentTripStatus.driverOnTheWay,
-        notification: morning ? "tripStarted" : null
-      };
+      return morning ? "tripStarted" : "returnStarted";
     case "START_RETURN" /* START_RETURN */:
-      return {
-        status: ParentTripStatus.driverOnTheWay,
-        notification: "returnStarted",
-        switchToAfternoon: true
-      };
+      return "returnStarted";
     case "ARRIVED_AT_STOP" /* ARRIVED_AT_STOP */:
-      return {
-        status: ParentTripStatus.arrivedAtPickup,
-        notification: null
-      };
+      return "driverNear";
     case "PICKED_UP" /* PICKED_UP */:
-      return {
-        status: ParentTripStatus.studentPickedUp,
-        notification: "pickedUp"
-      };
+      return "pickedUp";
     case "DROPPED_OFF" /* DROPPED_OFF */:
-      return {
-        status: ParentTripStatus.arrivedAtSchool,
-        notification: "delivered",
-        handoverPending: true
-      };
+      return "delivered";
     case "ARRIVED_AT_SCHOOL" /* ARRIVED_AT_SCHOOL */:
-      return {
-        status: ParentTripStatus.arrivedAtSchool,
-        notification: morning ? "arrivedSchool" : null
-      };
-    case "END_TRIP" /* END_TRIP */:
-      return {
-        status: ParentTripStatus.finished,
-        notification: null
-      };
+      return morning ? "arrivedSchool" : null;
     case "MARKED_ABSENT" /* MARKED_ABSENT */:
-      return {
-        status: null,
-        notification: "admin"
-      };
+      return "admin";
     case "EMERGENCY" /* EMERGENCY */:
-      return {
-        status: null,
-        notification: "delay"
-      };
+      return "delay";
+    case "END_TRIP" /* END_TRIP */:
     case "REORDER_STOPS" /* REORDER_STOPS */:
-      return {
-        status: null,
-        notification: null
-      };
-    default:
-      return {
-        status: null,
-        notification: null
-      };
+      return null;
   }
 }
-function statusAfterPickup(tripKind) {
-  return tripKind === "morning" ? ParentTripStatus.onTheWayToSchool : ParentTripStatus.onTheWayToSchool;
-}
-
-// src/firestorePaths.ts
-var FirestorePaths = {
-  users: () => "users",
-  user: (uid) => `users/${uid}`,
-  students: () => "students",
-  student: (studentId) => `students/${studentId}`,
-  drivers: () => "drivers",
-  driver: (uid) => `drivers/${uid}`,
-  guardians: () => "guardians",
-  guardian: (uid) => `guardians/${uid}`,
-  guardianStudents: (uid) => `guardians/${uid}/students`,
-  routes: () => "routes",
-  route: (routeId) => `routes/${routeId}`,
-  trips: () => "trips",
-  trip: (tripId) => `trips/${tripId}`,
-  tripEvents: () => "trip_events",
-  tripEvent: (eventId) => `trip_events/${eventId}`,
-  absences: () => "absences",
-  absence: (id) => `absences/${id}`,
-  addresses: () => "addresses",
-  address: (studentId) => `addresses/${studentId}`,
-  handovers: () => "handovers",
-  handover: (tripId) => `handovers/${tripId}`,
-  parentNotifications: (guardianUid) => `guardians/${guardianUid}/notifications`,
-  parentNotification: (guardianUid, id) => `guardians/${guardianUid}/notifications/${id}`,
-  schools: () => "schools",
-  school: (schoolId) => `schools/${schoolId}`,
-  adminMeta: () => "admin_meta/overview"
-};
-var SUGGESTED_INDEXES = [
-  "trip_events: tripId ASC, at ASC",
-  "trip_events: studentId ASC, at DESC",
-  "trips: routeId ASC, tripKind ASC, updatedAt DESC",
-  "absences: studentId ASC, day DESC"
-];
 
 // src/http.ts
 var DEFAULT_RAKAZ_API_URL = "http://127.0.0.1:8787";
+var RAKAZ_API_PREFIX = "/api/v1";
+var p = (path) => `${RAKAZ_API_PREFIX}${path}`;
+var enc = encodeURIComponent;
 var RakazHttpPaths = {
-  health: "/health",
-  overview: "/admin/overview",
-  students: "/admin/students",
-  student: (id) => `/admin/students/${encodeURIComponent(id)}`,
-  drivers: "/admin/drivers",
-  driver: (uid) => `/admin/drivers/${encodeURIComponent(uid)}`,
-  routes: "/admin/routes",
-  route: (id) => `/admin/routes/${encodeURIComponent(id)}`,
-  schools: "/admin/schools",
-  absences: "/admin/absences",
-  absencesToday: "/admin/absences/today",
-  trips: "/admin/trips",
-  trip: (id) => `/trips/${encodeURIComponent(id)}`,
-  tripEvents: (tripId) => `/trips/${encodeURIComponent(tripId)}/events`,
-  openDailyTrips: "/admin/trips/open-daily",
-  assignStudent: "/admin/assign/student",
-  assignDriver: "/admin/assign/driver",
-  broadcast: "/admin/broadcast",
-  events: "/events",
-  absence: "/absences",
-  address: "/addresses",
-  handover: "/handovers",
-  streamTrips: "/stream/trips",
-  streamTrip: (id) => `/stream/trips/${encodeURIComponent(id)}`,
-  resolveTrip: "/trips/resolve"
+  health: p("/health"),
+  auth: {
+    login: p("/auth/login"),
+    refresh: p("/auth/refresh"),
+    logout: p("/auth/logout"),
+    me: p("/auth/me"),
+    changePassword: p("/auth/change-password"),
+    deleteAccount: p("/auth/account")
+  },
+  notifications: {
+    list: p("/notifications"),
+    read: (id) => p(`/notifications/${enc(id)}/read`),
+    readAll: p("/notifications/read-all"),
+    remove: (id) => p(`/notifications/${enc(id)}`),
+    registerDevice: p("/notifications/devices"),
+    unregisterDevice: p("/notifications/devices/unregister")
+  },
+  driver: {
+    bootstrap: p("/driver/bootstrap"),
+    events: p("/driver/events"),
+    location: p("/driver/location"),
+    absencesToday: p("/driver/absences/today")
+  },
+  parent: {
+    bootstrap: p("/parent/bootstrap"),
+    todayTrips: p("/parent/trips/today"),
+    absences: p("/parent/absences"),
+    absence: (id) => p(`/parent/absences/${enc(id)}`),
+    address: (studentId) => p(`/parent/students/${enc(studentId)}/address`),
+    handovers: p("/parent/handovers"),
+    tickets: p("/parent/tickets")
+  },
+  admin: {
+    overview: p("/admin/overview"),
+    schools: p("/admin/schools"),
+    school: (id) => p(`/admin/schools/${enc(id)}`),
+    students: p("/admin/students"),
+    student: (id) => p(`/admin/students/${enc(id)}`),
+    studentRoute: (id) => p(`/admin/students/${enc(id)}/route`),
+    studentSubscription: (id) => p(`/admin/students/${enc(id)}/subscription`),
+    studentPayments: (id) => p(`/admin/students/${enc(id)}/payments`),
+    drivers: p("/admin/drivers"),
+    driver: (uid) => p(`/admin/drivers/${enc(uid)}`),
+    guardians: p("/admin/guardians"),
+    resetPassword: (uid) => p(`/admin/users/${enc(uid)}/reset-password`),
+    routes: p("/admin/routes"),
+    route: (id) => p(`/admin/routes/${enc(id)}`),
+    routeDriver: (id) => p(`/admin/routes/${enc(id)}/driver`),
+    trips: p("/admin/trips"),
+    tripEvents: (tripId) => p(`/admin/trips/${enc(tripId)}/events`),
+    openDailyTrips: p("/admin/trips/open-daily"),
+    streamTrips: p("/admin/trips/stream"),
+    absences: p("/admin/absences"),
+    broadcast: p("/admin/broadcast"),
+    finance: p("/admin/finance"),
+    tickets: p("/admin/tickets"),
+    ticket: (id) => p(`/admin/tickets/${enc(id)}`),
+    settings: p("/admin/settings")
+  }
 };
 function resolveRakazApiUrl(explicit) {
   if (explicit && explicit.length > 0) return explicit.replace(/\/$/, "");
@@ -256,17 +228,18 @@ function resolveRakazApiUrl(explicit) {
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   DEFAULT_RAKAZ_API_URL,
-  DEMO_STUDENT_ID_BRIDGE,
-  FirestorePaths,
   ParentTripStatus,
+  RAKAZ_API_PREFIX,
+  RAKAZ_MIN_PASSWORD_LENGTH,
   RakazActionKind,
   RakazHttpPaths,
-  SUGGESTED_INDEXES,
   buildTripId,
-  mapDriverActionToParent,
+  formatIraqiPhoneLocal,
+  normalizeIraqiPhone,
+  notificationForAction,
+  parentStatusFor,
   resolveRakazApiUrl,
-  statusAfterPickup,
-  toCanonicalStudentId,
-  toDriverLocalStudentId,
-  todayISO
+  toLatinDigits,
+  todayISO,
+  tripStatusForPhase
 });

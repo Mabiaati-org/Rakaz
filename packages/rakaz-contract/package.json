@@ -4,13 +4,14 @@
   "private": true,
   "description": "Shared linking contract between Rakaz apps, dashboard, and API",
   "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./src/index.ts",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.cjs",
-      "default": "./dist/index.js"
+      "default": "./dist/index.mjs"
     }
   },
   "scripts": {
@@ -21,5 +22,9 @@
   "devDependencies": {
     "esbuild": "^0.25.4",
     "typescript": "~5.9.2"
-  }
+  },
+  "files": [
+    "dist",
+    "src"
+  ]
 }

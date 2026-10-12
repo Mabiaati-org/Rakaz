@@ -1,6 +1,6 @@
-import type { CanonicalStudentId, CanonicalTripId, FirebaseUid } from './ids';
+import type { CanonicalStudentId, CanonicalTripId, RakazUid } from './ids';
 
-/** Geo point shared by both apps and Firestore. */
+/** Geo point shared by the apps, the dashboard and the API. */
 export interface RakazGeoPoint {
   latitude: number;
   longitude: number;
@@ -8,7 +8,6 @@ export interface RakazGeoPoint {
 
 /**
  * Driver action kinds — must stay identical to `ActionKind` in rakaz-driver-rn/types/models.ts.
- * The Firebase specialist writes these as `trip_events.action`.
  */
 export enum RakazActionKind {
   START_TRIP = 'START_TRIP',
@@ -26,11 +25,25 @@ export enum RakazActionKind {
 export type RakazTripKind = 'morning' | 'afternoon';
 
 /**
- * One immutable event written by the driver app (or SyncService flush).
- * This is the primary wire format between driver → Firestore → parent.
+ * What the driver app sends for each queued action. The API derives the trip, route and
+ * driver from the authenticated account, so the client never chooses them.
  */
+export interface RakazDriverEventInput {
+  /** Client-generated uuid; the API stores events idempotently by this id. */
+  id: string;
+  tripKind: RakazTripKind;
+  action: RakazActionKind;
+  studentId: CanonicalStudentId | null;
+  /** Epoch ms (device clock) of when the driver performed the action. */
+  at: number;
+  location: RakazGeoPoint | null;
+  detail: string | null;
+  schemaVersion: 1;
+}
+
+/** One immutable trip event as stored by the API. */
 export interface RakazTripEvent {
-  /** Client-generated uuid; also used as Firestore document id for idempotent writes. */
+  /** Client-generated uuid; events are stored idempotently by this id. */
   id: string;
   tripId: CanonicalTripId;
   routeId: string;
@@ -38,20 +51,17 @@ export interface RakazTripEvent {
   action: RakazActionKind;
   /** Canonical STU-* id when the event is about a student; null for trip-level actions. */
   studentId: CanonicalStudentId | null;
-  /** Epoch ms (device clock). Cloud Function may also set serverTimestamp. */
+  /** Epoch ms (device clock). */
   at: number;
   location: RakazGeoPoint | null;
   /** Free-text detail (absence reason, emergency note, reorder payload). */
   detail: string | null;
-  driverUid: FirebaseUid | null;
-  /** Schema version for forward-compatible Cloud Functions. */
+  driverUid: RakazUid | null;
+  /** Schema version for forward-compatible changes. */
   schemaVersion: 1;
 }
 
-/**
- * Live trip document mirrored in Firestore `trips/{tripId}`.
- * Parent app listens to this (preferred) or derives state from trip_events.
- */
+/** Live state of one daily trip (morning or afternoon) of a route. */
 export interface RakazTripSnapshot {
   tripId: CanonicalTripId;
   routeId: string;
@@ -60,7 +70,7 @@ export interface RakazTripSnapshot {
   status: number;
   /** 0..1 progress hint for map animation; optional. */
   progress: number;
-  driverUid: FirebaseUid | null;
+  driverUid: RakazUid | null;
   vehicleLabel: string | null;
   updatedAt: number;
   /** Set when afternoon drop-off happens; parent shows handover sheet. */
@@ -68,6 +78,37 @@ export interface RakazTripSnapshot {
   handoverConfirmedAt: number | null;
   /** Last known bus position for the live map. */
   busLocation: RakazGeoPoint | null;
+  /** Epoch ms of the last bus position, or null when none was received yet. */
+  busUpdatedAt: number | null;
+  /** Calendar day of the trip (YYYY-MM-DD, school timezone). */
+  dateISO: string;
+  startedAt: number | null;
+  endedAt: number | null;
+}
+
+export type RakazStopStatus = 'pending' | 'arrived' | 'pickedUp' | 'absent' | 'droppedOff';
+
+/** Per-student state inside a trip. */
+export interface RakazTripStudentState {
+  studentId: CanonicalStudentId;
+  studentName: string;
+  status: RakazStopStatus;
+  arrivedAt: number | null;
+  completedAt: number | null;
+  handoverPending: boolean;
+  handoverConfirmedAt: number | null;
+  handoverIssue: boolean;
+}
+
+/** Bus position sent periodically by the driver app while a trip is running. */
+export interface RakazLocationPing {
+  tripKind: RakazTripKind;
+  latitude: number;
+  longitude: number;
+  /** Epoch ms (device clock). */
+  at: number;
+  speed: number | null;
+  heading: number | null;
 }
 
 /** Parent → backend absence report. */
@@ -80,31 +121,45 @@ export interface RakazAbsenceReport {
   reason: 'none' | 'sick' | 'family' | 'travel' | 'appointment' | 'other';
   note: string;
   createdAt: number;
-  guardianUid: FirebaseUid | null;
+  guardianUid: RakazUid | null;
+  /** Filled by the API on reads. */
+  studentName?: string;
+  /** Epoch ms when the driver app fetched this report, or null. */
+  seenByDriverAt?: number | null;
 }
 
-/** Parent → backend home address update. */
-export interface RakazAddressUpdate {
-  studentId: CanonicalStudentId;
-  label: string;
+/** Full home address of a student, editable by the guardian. */
+export interface RakazStudentAddress {
+  governorate: string;
   area: string;
+  neighborhood: string;
   street: string;
-  coordinate: RakazGeoPoint;
-  updatedAt: number;
-  guardianUid: FirebaseUid | null;
+  landmark: string;
+  accessNotes: string;
+  latitude: number;
+  longitude: number;
 }
 
-/** Parent → backend handover confirmation / issue. */
+/** Parent → backend handover confirmation / issue for the afternoon drop-off. */
 export interface RakazHandoverResult {
   tripId: CanonicalTripId;
   studentId: CanonicalStudentId;
   confirmed: boolean;
   issueReported: boolean;
   at: number;
-  guardianUid: FirebaseUid | null;
 }
 
-/** Push / in-app notification kinds on the parent side. */
+/** Parent → backend absence report payload. */
+export interface RakazAbsenceInput {
+  studentId: CanonicalStudentId;
+  /** Calendar day of the absence (YYYY-MM-DD). */
+  dateISO: string;
+  scope: RakazAbsenceReport['scope'];
+  reason: RakazAbsenceReport['reason'];
+  note: string;
+}
+
+/** Push / in-app notification kinds. */
 export type RakazNotificationKind =
   | 'tripReminder'
   | 'tripStarted'
@@ -115,8 +170,11 @@ export type RakazNotificationKind =
   | 'delivered'
   | 'payment'
   | 'delay'
-  | 'admin';
+  | 'admin'
+  | 'routeChange'
+  | 'emergency';
 
+/** One inbox item of the signed-in user (guardian, driver or admin). */
 export interface RakazParentNotification {
   id: string;
   kind: RakazNotificationKind;
