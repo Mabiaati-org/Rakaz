@@ -9,6 +9,8 @@ const enc = encodeURIComponent;
 
 export const RakazHttpPaths = {
   health: p('/health'),
+  /** Contact details and the privacy policy link; readable before sign-in. */
+  publicSettings: p('/public/settings'),
 
   auth: {
     login: p('/auth/login'),

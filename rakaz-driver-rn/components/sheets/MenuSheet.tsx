@@ -1,7 +1,7 @@
-import { Check, ChevronLeft, KeyRound, LogOut, Phone, RefreshCw, Trash2 } from 'lucide-react-native';
-import { type ReactNode, useState } from 'react';
+import { Check, ChevronLeft, KeyRound, LogOut, Phone, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react-native';
+import { type ReactNode, useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -9,6 +9,7 @@ import { BrandButton, LogoBadge } from '@/components/Components';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PressableScale } from '@/components/PressableScale';
 import { Rakaz, withAlpha } from '@/constants/theme';
+import { client } from '@/services/api';
 import { findStudent } from '@/store/driverState';
 import { useDriverStore } from '@/store/driverStore';
 import { ActionKindTitle, RouteOptimizationModeTitle } from '@/types/models';
@@ -49,7 +50,15 @@ export function MenuSheet({ visible, onDismiss, onCall, onLogout }: MenuSheetPro
   const store = useDriverStore();
   const { state, derived } = store;
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [privacyUrl, setPrivacyUrl] = useState('');
   const profile = state.profile;
+
+  useEffect(() => {
+    if (!visible || privacyUrl) return;
+    void client.publicSettings().then((settings) => {
+      if (settings) setPrivacyUrl(settings.privacyPolicyUrl);
+    });
+  }, [visible, privacyUrl]);
   const canSync = derived.isOnline && state.pending.length > 0;
 
   return (
@@ -150,6 +159,15 @@ export function MenuSheet({ visible, onDismiss, onCall, onLogout }: MenuSheetPro
           </AppText>
           <ChevronLeft color={Rakaz.InkSecondary} size={18} />
         </PressableScale>
+        {privacyUrl ? (
+          <PressableScale onPress={() => void Linking.openURL(privacyUrl)} accessibilityLabel="سياسة الخصوصية" style={styles.linkRow}>
+            <ShieldCheck color={Rakaz.Navy} size={20} />
+            <AppText variant="bodyLarge" style={styles.flex}>
+              سياسة الخصوصية
+            </AppText>
+            <ChevronLeft color={Rakaz.InkSecondary} size={18} />
+          </PressableScale>
+        ) : null}
         <PressableScale
           onPress={() => {
             onDismiss();

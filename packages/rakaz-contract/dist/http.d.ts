@@ -4,6 +4,8 @@ export declare const DEFAULT_RAKAZ_API_URL = "http://127.0.0.1:8787";
 export declare const RAKAZ_API_PREFIX = "/api/v1";
 export declare const RakazHttpPaths: {
     readonly health: string;
+    /** Contact details and the privacy policy link; readable before sign-in. */
+    readonly publicSettings: string;
     readonly auth: {
         readonly login: string;
         readonly refresh: string;

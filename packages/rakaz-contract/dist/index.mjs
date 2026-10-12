@@ -122,6 +122,8 @@ var p = (path) => `${RAKAZ_API_PREFIX}${path}`;
 var enc = encodeURIComponent;
 var RakazHttpPaths = {
   health: p("/health"),
+  /** Contact details and the privacy policy link; readable before sign-in. */
+  publicSettings: p("/public/settings"),
   auth: {
     login: p("/auth/login"),
     refresh: p("/auth/refresh"),
@@ -330,6 +332,13 @@ function createRakazClient(options) {
         return response.ok;
       } catch {
         return false;
+      }
+    },
+    async publicSettings() {
+      try {
+        return (await unwrap(await rawFetch(P.publicSettings, { timeoutMs: 8e3 }, null))).data;
+      } catch {
+        return null;
       }
     },
     notifications: {

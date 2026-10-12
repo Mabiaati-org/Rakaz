@@ -148,6 +148,11 @@ describe('Rakaz API (e2e)', () => {
       expect(res.body).toMatchObject({ success: true, data: { ok: true } });
     });
 
+    it('serves the public contact settings without a token', async () => {
+      const res = await http().get(P.publicSettings).expect(200);
+      expect(res.body.data).toEqual({ adminPhone: '', whatsappNumber: '', privacyPolicyUrl: '' });
+    });
+
     it('rejects protected routes without a token', async () => {
       const res = await http().get(P.admin.students).expect(401);
       expect(res.body).toMatchObject({ success: false, statusCode: 401, code: 'SESSION_EXPIRED' });

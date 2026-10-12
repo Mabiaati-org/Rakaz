@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import {
   buildTripId,
   notificationForAction,
@@ -58,9 +58,14 @@ interface Outbox {
 // A device clock far in the future would file the event under the wrong day.
 const MAX_CLOCK_SKEW_MS = 5 * 60_000;
 
+// Bus positions are only useful for following a trip and reviewing a recent incident.
+const PING_RETENTION_DAYS = 30;
+const DAY_MS = 86_400_000;
+
 @Injectable()
-export class TripsService {
+export class TripsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TripsService.name);
+  private pruneTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -68,6 +73,28 @@ export class TripsService {
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeService,
   ) {}
+
+  onModuleInit(): void {
+    if (this.config.env === 'test') return;
+    void this.pruneOldPings();
+    this.pruneTimer = setInterval(() => void this.pruneOldPings(), DAY_MS);
+    this.pruneTimer.unref();
+  }
+
+  onModuleDestroy(): void {
+    if (this.pruneTimer) clearInterval(this.pruneTimer);
+  }
+
+  private async pruneOldPings(): Promise<void> {
+    try {
+      const { count } = await this.prisma.locationPing.deleteMany({
+        where: { at: { lt: new Date(Date.now() - PING_RETENTION_DAYS * DAY_MS) } },
+      });
+      if (count > 0) this.logger.log(`Removed ${count} bus positions older than ${PING_RETENTION_DAYS} days`);
+    } catch (error) {
+      this.logger.warn(`Pruning bus positions failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
   todayISO(): string {
     return dateISOInTz(Date.now(), this.config.timezone);

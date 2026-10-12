@@ -1,6 +1,6 @@
 import { CircleAlert, Lock, Phone, Shield } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/AppText';
@@ -8,6 +8,7 @@ import { AuthBackdrop, AuthField } from '@/components/AuthParts';
 import { rakazLogo } from '@/components/Components';
 import { PressableScale } from '@/components/PressableScale';
 import { Rakaz, withAlpha } from '@/constants/theme';
+import { client } from '@/services/api';
 import { useDriverStore } from '@/store/driverStore';
 
 export default function LoginScreen() {
@@ -20,6 +21,17 @@ export default function LoginScreen() {
   const appear = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(0)).current;
   const errorFade = useRef(new Animated.Value(0)).current;
+  const [privacyUrl, setPrivacyUrl] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void client.publicSettings().then((settings) => {
+      if (!cancelled && settings) setPrivacyUrl(settings.privacyPolicyUrl);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     Animated.parallel([
@@ -94,6 +106,13 @@ export default function LoginScreen() {
                 الحساب وكلمة المرور تصدرهما إدارة النقل. إن نسيت كلمة المرور فاطلب من الإدارة إصدار واحدة جديدة.
               </AppText>
             </View>
+            {privacyUrl ? (
+              <PressableScale onPress={() => void Linking.openURL(privacyUrl)} accessibilityLabel="سياسة الخصوصية" style={styles.link}>
+                <AppText variant="labelMedium" color={Rakaz.Gold}>
+                  سياسة الخصوصية
+                </AppText>
+              </PressableScale>
+            ) : null}
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -145,4 +164,5 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   note: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingTop: 6 },
+  link: { minHeight: 44, justifyContent: 'center' },
 });

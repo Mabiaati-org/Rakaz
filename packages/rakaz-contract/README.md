@@ -1,39 +1,28 @@
-# @rakaz/contract — حزمة ربط ركاز (Firebase)
+# @rakaz/contract — العقد المشترك
 
-عقود TypeScript مشتركة بين `rakaz-driver-rn` و`rakaz-parent-rn`. لا تعتمد على React Native ولا على
-Firebase SDK — يركّب مطور Firebase التنفيذ فوق هذه الواجهات.
-
-## ماذا تتضمن؟
+مصدر الحقيقة لشكل البيانات بين `rakaz-api` ولوحة الإدارة والتطبيقين. لا تعتمد على React Native ولا على NestJS.
 
 | ملف | الغرض |
 | --- | --- |
-| `ids.ts` | معرّفات `STU-*` و`TRIP-*` وجسر بيانات الديمو `st-*` ↔ `STU-*` |
-| `events.ts` | `RakazTripEvent` و`RakazTripSnapshot` والغياب والعنوان وتأكيد الاستلام |
-| `mapping.ts` | تحويل `RakazActionKind` → حالة ولي الأمر `TripStatus` + نوع الإشعار |
-| `firestorePaths.ts` | مسارات المجموعات والوثائق المقترحة |
-| `repositories.ts` | واجهات: `TripEventWriter`, `TripLiveSource`, `ParentCommandApi`, `RakazAuthApi` |
+| `http.ts` | كل مسارات الـ API (`/api/v1/...`) |
+| `envelope.ts` | شكل الرد الموحّد `{ success, data, message, meta }` وأكواد الأخطاء |
+| `auth.ts` | الجلسة والأدوار وكلمات المرور المؤقتة |
+| `events.ts` | أحداث السائق، حالة الرحلة، الغياب، العنوان، الإشعارات |
+| `mapping.ts` | تحويل مرحلة الرحلة وحالة المحطة إلى ما يراه ولي الأمر |
+| `driver.ts` / `parent.ts` / `admin.ts` / `finance.ts` | حمولات كل عميل |
+| `phone.ts` | توحيد أرقام الهاتف العراقية إلى `+9647XXXXXXXXX` |
+| `client.ts` | عميل HTTP واحد للجميع: توكن، تجديد الجلسة، فك الرد |
 
-## تدفق الربط
+## الاستخدام
 
+- التطبيقان واللوحة يقرآن المصدر مباشرة (`src/`) عبر alias في Metro / Vite / tsconfig.
+- `rakaz-api` يقرأ النسخة المبنية (`dist/`) عبر `exports`، لذلك تُرفع `dist/` مع المستودع.
+
+بعد أي تعديل في `src/`:
+
+```bash
+npm run typecheck
+npm run build      # يحدّث dist/ — ارفعه مع التعديل
 ```
-السائق ──writeEvents──► trip_events + trips
-                              │
-                     onSnapshot / FCM
-                              ▼
-                         ولي الأمر
-                              │
-              reportAbsence / updateAddress / handover
-                              ▼
-                         Firestore ◄── السائق يقرأ الغياب
-```
 
-## أول حدث للتحقق
-
-1. السائق يكتب `PICKED_UP` لـ `STU-24031`.
-2. Cloud Function أو العميل يحدّث `trips/{tripId}.status = 4`.
-3. ولي الأمر يستمع ويظهر إشعار «تم استلام الطالب».
-
-## ملاحظات للديمو الحالي
-
-بيانات العيّنة في التطبيقين ليست نفس الأشخاص (`st-1` زهراء ≠ `STU-24031` لبان).
-استخدم `DEMO_STUDENT_ID_BRIDGE` للاختبار فقط، وفي الإنتاج مصدر الطلاب هو Firestore فقط.
+الـ CI يفشل إذا كانت `dist/` لا تطابق المصدر.

@@ -2,12 +2,15 @@
   "name": "rakaz-monorepo",
   "private": true,
   "scripts": {
-    "api": "npm --prefix packages/rakaz-api run dev",
+    "api": "npm --prefix packages/rakaz-api run start:dev",
     "dashboard": "npm --prefix rakaz-dashboard run dev",
+    "build:contract": "npm --prefix packages/rakaz-contract run build",
+    "typecheck": "npm run typecheck:contract && npm run typecheck:api && npm run typecheck:dashboard && npm run typecheck:driver && npm run typecheck:parent",
     "typecheck:contract": "npm --prefix packages/rakaz-contract run typecheck",
     "typecheck:api": "npm --prefix packages/rakaz-api run typecheck",
     "typecheck:dashboard": "npm --prefix rakaz-dashboard run typecheck",
     "typecheck:driver": "npm --prefix rakaz-driver-rn run typecheck",
-    "typecheck:parent": "npm --prefix rakaz-parent-rn run typecheck"
+    "typecheck:parent": "npm --prefix rakaz-parent-rn run typecheck",
+    "test:api": "npm --prefix packages/rakaz-api run test:e2e"
   }
 }

@@ -6,6 +6,7 @@ import type {
 import type { ApiFailure, ApiFieldError, ApiPageMeta, ApiResponse, RakazErrorCode } from './envelope';
 import type { RakazNotificationPreferences, RakazParentNotification } from './events';
 import { RakazHttpPaths } from './http';
+import type { RakazSupportContact } from './parent';
 
 export interface RakazStoredTokens {
   accessToken: string;
@@ -84,6 +85,8 @@ export interface RakazClient {
   changePassword(currentPassword: string, newPassword: string): Promise<RakazAuthSession>;
   deleteAccount(password: string): Promise<void>;
   ping(): Promise<boolean>;
+  /** Contact details and the privacy policy link; works without a session. Null when unreachable. */
+  publicSettings(): Promise<RakazSupportContact | null>;
   notifications: {
     list(page?: number, limit?: number): Promise<RakazParentNotification[]>;
     markRead(id: string): Promise<void>;
@@ -245,6 +248,14 @@ export function createRakazClient(options: RakazClientOptions): RakazClient {
         return response.ok;
       } catch {
         return false;
+      }
+    },
+
+    async publicSettings() {
+      try {
+        return (await unwrap<RakazSupportContact>(await rawFetch(P.publicSettings, { timeoutMs: 8000 }, null))).data;
+      } catch {
+        return null;
       }
     },
 

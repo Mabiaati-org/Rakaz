@@ -1,14 +1,16 @@
 import { ArrowLeft, CircleAlert, ShieldCheck } from 'lucide-react-native';
-import { useRef, useState } from 'react';
-import { Animated, Easing, Keyboard, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Keyboard, Linking, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/AppText';
 import { BrandHeaderBackground } from '@/components/Brand';
 import { PrimaryButton } from '@/components/Buttons';
 import { PasswordInput } from '@/components/PasswordInput';
+import { PressableScale } from '@/components/PressableScale';
 import { LogoBadge } from '@/components/Primitives';
 import { card, Fonts, Theme, withAlpha } from '@/constants/theme';
+import { client } from '@/services/api';
 import { useSession } from '@/store/sessionStore';
 import { Haptics } from '@/utils/haptics';
 
@@ -25,6 +27,17 @@ export default function LoginScreen() {
   const [phoneFocused, setPhoneFocused] = useState(false);
   const shake = useRef(new Animated.Value(0)).current;
   const loadingRef = useRef(false);
+  const [privacyUrl, setPrivacyUrl] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void client.publicSettings().then((settings) => {
+      if (!cancelled && settings) setPrivacyUrl(settings.privacyPolicyUrl);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const submit = async () => {
     if (loadingRef.current) return;
@@ -122,6 +135,13 @@ export default function LoginScreen() {
           <AppText size="caption" color={withAlpha(Theme.muted, 0.8)} align="center">
             الحساب وكلمة المرور تصدرهما إدارة ركاز. إن نسيت كلمة المرور فاطلب من الإدارة إصدار واحدة جديدة.
           </AppText>
+          {privacyUrl ? (
+            <PressableScale onPress={() => void Linking.openURL(privacyUrl)} accessibilityLabel="سياسة الخصوصية" style={styles.link}>
+              <AppText size="footnote" weight="semibold" color={Theme.gold}>
+                سياسة الخصوصية
+              </AppText>
+            </PressableScale>
+          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -164,4 +184,5 @@ const styles = StyleSheet.create({
   error: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, backgroundColor: Theme.redSoft },
   flex: { flex: 1 },
   footer: { alignItems: 'center', gap: 6 },
+  link: { minHeight: 44, justifyContent: 'center' },
 });

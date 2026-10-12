@@ -1,6 +1,7 @@
 import type { RakazAuthSession, RakazAuthUser, RakazDeviceRegistration } from './auth';
 import type { ApiFieldError, ApiPageMeta, RakazErrorCode } from './envelope';
 import type { RakazNotificationPreferences, RakazParentNotification } from './events';
+import type { RakazSupportContact } from './parent';
 export interface RakazStoredTokens {
     accessToken: string;
     refreshToken: string;
@@ -61,6 +62,8 @@ export interface RakazClient {
     changePassword(currentPassword: string, newPassword: string): Promise<RakazAuthSession>;
     deleteAccount(password: string): Promise<void>;
     ping(): Promise<boolean>;
+    /** Contact details and the privacy policy link; works without a session. Null when unreachable. */
+    publicSettings(): Promise<RakazSupportContact | null>;
     notifications: {
         list(page?: number, limit?: number): Promise<RakazParentNotification[]>;
         markRead(id: string): Promise<void>;
