@@ -55,7 +55,15 @@ export function TicketsPage() {
             </button>
           </div>
           <p className="muted">
-            {active.authorName} · <span dir="ltr">{formatIraqiPhoneLocal(active.authorPhone ?? '')}</span> · {topicLabel[active.topic]} · {formatDateTime(active.createdAt)}
+            {active.authorName} · <span dir="ltr">{formatIraqiPhoneLocal(active.authorPhone ?? '')}</span> ·{' '}
+            {active.routeName ? (
+              <>
+                المسار: <strong>{active.routeName}</strong> ·{' '}
+              </>
+            ) : (
+              <>بدون مسار · </>
+            )}
+            {topicLabel[active.topic]} · {formatDateTime(active.createdAt)}
           </p>
           <p className="ticket-body">{active.body}</p>
           <div className="form-grid">
@@ -86,6 +94,7 @@ export function TicketsPage() {
               <th>النوع</th>
               <th>الموضوع</th>
               <th>المرسل</th>
+              <th>المسار</th>
               <th>النص</th>
               <th>التاريخ</th>
               <th>الحالة</th>
@@ -101,6 +110,7 @@ export function TicketsPage() {
                 <td>{t.kind === 'complaint' ? 'شكوى' : 'ملاحظة'}</td>
                 <td>{topicLabel[t.topic]}</td>
                 <td>{t.authorName}</td>
+                <td>{t.routeName ? t.routeName : <span className="muted">بدون مسار</span>}</td>
                 <td className="truncate">{t.body}</td>
                 <td>{formatDateTime(t.createdAt)}</td>
                 <td>

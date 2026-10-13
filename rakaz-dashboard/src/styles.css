@@ -555,6 +555,10 @@ a:focus-visible {
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--line);
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .map-box.tall {

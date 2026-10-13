@@ -13,7 +13,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 const ticketInclude = { user: true } satisfies Prisma.SupportTicketInclude;
 type TicketRow = Prisma.SupportTicketGetPayload<{ include: typeof ticketInclude }>;
 
-function toWire(t: TicketRow, withAuthor: boolean): RakazSupportTicket {
+function toWire(t: TicketRow, withAuthor: boolean, routeName?: string): RakazSupportTicket {
   return {
     id: t.id,
     code: t.code,
@@ -23,7 +23,9 @@ function toWire(t: TicketRow, withAuthor: boolean): RakazSupportTicket {
     status: ticketStatusMap.toWire(t.status),
     adminReply: t.adminReply,
     createdAt: t.createdAt.getTime(),
-    ...(withAuthor ? { authorName: t.user.name, authorPhone: t.user.phone } : {}),
+    ...(withAuthor
+      ? { authorName: t.user.name, authorPhone: t.user.phone, routeName: routeName ?? '' }
+      : {}),
   };
 }
 
@@ -34,7 +36,30 @@ export class TicketsService {
     private readonly notifications: NotificationsService,
   ) {}
 
+  /** Route labels for guardians, joined when a family spans more than one route. */
+  private async routeNamesByGuardian(userIds: string[]): Promise<Map<string, string>> {
+    const unique = [...new Set(userIds)].filter(Boolean);
+    const out = new Map<string, string>();
+    if (unique.length === 0) return out;
+    const students = await this.prisma.student.findMany({
+      where: { guardianId: { in: unique }, deletedAt: null, routeId: { not: null } },
+      select: { guardianId: true, route: { select: { code: true, name: true } } },
+    });
+    const buckets = new Map<string, string[]>();
+    for (const s of students) {
+      if (!s.guardianId || !s.route) continue;
+      const label = `${s.route.name} (${s.route.code})`;
+      const list = buckets.get(s.guardianId) ?? [];
+      if (!list.includes(label)) list.push(label);
+      buckets.set(s.guardianId, list);
+    }
+    for (const [id, labels] of buckets) out.set(id, labels.join(' · '));
+    return out;
+  }
+
   async create(author: AuthUser, input: RakazSupportTicketInput): Promise<RakazSupportTicket> {
+    const routes = await this.routeNamesByGuardian([author.id]);
+    const routeName = routes.get(author.id) ?? '';
     for (let attempt = 0; ; attempt++) {
       try {
         const ticket = await this.prisma.supportTicket.create({
@@ -47,10 +72,11 @@ export class TicketsService {
           },
           include: ticketInclude,
         });
+        const routeBit = routeName ? ` · ${routeName}` : '';
         await this.notifications.notifyAdmins({
           kind: 'ADMIN',
           title: input.kind === 'complaint' ? 'شكوى جديدة' : 'ملاحظة جديدة',
-          body: `${author.name}: ${input.body.slice(0, 120)}`,
+          body: `${author.name}${routeBit}: ${input.body.slice(0, 120)}`,
         });
         return toWire(ticket, false);
       } catch (error) {
@@ -71,7 +97,8 @@ export class TicketsService {
 
   async listForAdmin(): Promise<RakazSupportTicket[]> {
     const rows = await this.prisma.supportTicket.findMany({ include: ticketInclude, orderBy: { createdAt: 'desc' } });
-    return rows.map((r) => toWire(r, true));
+    const routes = await this.routeNamesByGuardian(rows.map((r) => r.userId));
+    return rows.map((r) => toWire(r, true, routes.get(r.userId) ?? ''));
   }
 
   async update(id: string, patch: { status: RakazTicketStatus; adminReply: string | null }): Promise<RakazSupportTicket> {
@@ -91,7 +118,8 @@ export class TicketsService {
         body: replied ? (patch.adminReply as string) : 'تم تحديث حالة طلبك لدى الإدارة.',
       });
     }
-    return toWire(updated, true);
+    const routes = await this.routeNamesByGuardian([updated.userId]);
+    return toWire(updated, true, routes.get(updated.userId) ?? '');
   }
 
   countOpen(): Promise<number> {

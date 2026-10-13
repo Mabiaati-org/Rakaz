@@ -104,6 +104,11 @@ export interface RakazSupportTicket {
   /** Filled for the dashboard. */
   authorName?: string;
   authorPhone?: string;
+  /**
+   * Route label for the author's assigned students (dashboard).
+   * Empty when the guardian has no student on a route.
+   */
+  routeName?: string;
 }
 
 export interface RakazSupportTicketInput {
