@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Support — Rakaz</title>
+    <title>الدعم والمساعدة — ركاز</title>
     <style>
       :root {
         --ink: #071d36;
@@ -13,38 +13,25 @@
         --gold: #c4a35a;
         --line: #e2e6e3;
       }
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: 'IBM Plex Sans', 'Segoe UI', Tahoma, sans-serif;
+        font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
         color: var(--ink);
         background: var(--canvas);
-        line-height: 1.7;
+        line-height: 1.85;
       }
-      main {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 40px 20px 72px;
-      }
+      main { max-width: 760px; margin: 0 auto; padding: 40px 20px 72px; }
       .brand {
         font-size: 0.75rem;
         letter-spacing: 0.14em;
-        text-transform: uppercase;
         color: var(--gold);
         font-weight: 700;
         margin-bottom: 8px;
       }
-      h1 {
-        font-size: 2rem;
-        margin: 0 0 8px;
-      }
-      .lead {
-        color: var(--muted);
-        margin: 0 0 28px;
-        font-size: 1.05rem;
-      }
+      h1 { font-size: 2rem; margin: 0 0 8px; }
+      h2 { font-size: 1.12rem; margin: 0 0 10px; }
+      .lead { color: var(--muted); margin: 0 0 28px; font-size: 1.05rem; }
       .card {
         background: var(--card);
         border: 1px solid var(--line);
@@ -52,119 +39,143 @@
         padding: 22px 24px;
         margin-bottom: 16px;
       }
-      h2 {
-        font-size: 1.1rem;
-        margin: 0 0 10px;
-      }
-      p {
-        margin: 0 0 10px;
-      }
-      p:last-child {
-        margin-bottom: 0;
-      }
-      ul {
-        margin: 0;
-        padding-inline-start: 1.2rem;
-      }
-      li {
-        margin-bottom: 6px;
-      }
-      a {
-        color: var(--ink);
-        font-weight: 600;
-      }
-      .muted {
-        color: var(--muted);
-      }
-      .ar {
-        direction: rtl;
-        font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+      p { margin: 0 0 10px; }
+      p:last-child { margin-bottom: 0; }
+      ul { margin: 0; padding-inline-start: 1.2rem; }
+      li { margin-bottom: 6px; }
+      a { color: var(--ink); font-weight: 600; }
+      .contact a { font-size: 1.15rem; }
+      .muted { color: var(--muted); }
+      .en {
+        direction: ltr;
+        text-align: left;
+        font-family: 'IBM Plex Sans', 'Segoe UI', Tahoma, sans-serif;
         margin-top: 36px;
         padding-top: 28px;
         border-top: 1px solid var(--line);
       }
-      .footer {
-        margin-top: 28px;
-        font-size: 0.9rem;
-        color: var(--muted);
-      }
+      .footer { margin-top: 28px; font-size: 0.9rem; color: var(--muted); }
     </style>
   </head>
   <body>
     <main>
-      <div class="brand">Rakaz</div>
-      <h1>Support</h1>
+      <div class="brand">ركاز</div>
+      <h1>الدعم والمساعدة</h1>
       <p class="lead">
-        Help for the Rakaz Parent and Rakaz Driver apps. We are happy to assist with accounts, trips, and
-        school transport questions.
+        هذه صفحة الدعم لتطبيق ركاز لولي الأمر وتطبيق ركاز السائق، المنشورين على Google Play باسم المطوّر
+        <span dir="ltr">Wattan Al-Sultan</span>. نرد على أسئلة الحسابات والرحلات والنقل المدرسي.
       </p>
 
-      <div class="card">
-        <h2>How to reach us</h2>
+      <div class="card contact">
+        <h2>تواصل معنا مباشرة</h2>
+        <p>لا تحتاج إلى حساب مفتوح حتى تراسلنا. نرد خلال أيام العمل.</p>
         <ul>
-          <li>
-            <strong>In the Parent app:</strong> open the Help tab to call, message on WhatsApp, or send a
-            support request.
-          </li>
-          <li>
-            <strong>In the Driver app:</strong> open the menu and use Call Administration, or ask your
-            transport office for a password reset.
-          </li>
-          <li>
-            <strong>Privacy policy:</strong>
-            <a href="./privacy.html">admin.rakaz.autos/privacy.html</a>
-          </li>
+          <li>بريد المطوّر: <a href="mailto:developer@alsultan.dev">developer@alsultan.dev</a></li>
+          <li>بريد الدعم: <a href="mailto:support@rakaz.autos">support@rakaz.autos</a></li>
+          <li id="phone-line" hidden>الهاتف: <a id="phone-link" href="tel:"></a></li>
+          <li id="whatsapp-line" hidden>واتساب: <a id="whatsapp-link" href="https://wa.me/" target="_blank" rel="noopener"></a></li>
+        </ul>
+        <p class="muted">من داخل تطبيق ولي الأمر: تبويب المساعدة. من داخل تطبيق السائق: القائمة ← الاتصال بالإدارة.</p>
+      </div>
+
+      <div class="card">
+        <h2>كيف تحصل على حساب</h2>
+        <p>
+          ركاز خدمة نقل مدرسي للعائلات. أي ولي أمر يستطيع تنزيل التطبيق من المتجر. عند تسجيل ابنك في النقل تعطي
+          رقم هاتفك لمكتب النقل، فيُنشأ حسابك وتصلك كلمة مرور مؤقتة، وتختار كلمة مرورك عند أول دخول.
+        </p>
+        <p>
+          إذا لم يصلك الحساب، أو نسيت كلمة المرور، راسلنا على
+          <a href="mailto:support@rakaz.autos">support@rakaz.autos</a>
+          واذكر رقم هاتفك واسم الطالب. نعيد تعيين كلمة المرور أو نفتح الحساب لك.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>ماذا يساعدك التطبيق عليه</h2>
+        <ul>
+          <li>متابعة رحلة ابنك وموقع الحافلة أثناء الرحلة.</li>
+          <li>إبلاغ الغياب وتأكيد الاستلام عند الوصول إلى المنزل.</li>
+          <li>عرض الاشتراك والدفعات التي سجّلتها الإدارة. الدفع يتم خارج التطبيق، ولا نطلب بيانات بطاقة.</li>
+          <li>إرسال شكوى أو ملاحظة من تبويب المساعدة.</li>
         </ul>
       </div>
 
       <div class="card">
-        <h2>Accounts</h2>
-        <p>
-          There is no public sign-up. Parent and driver accounts are created by the transport
-          administration. If you cannot sign in, contact your school transport office and ask them to
-          reset your password from the Rakaz admin dashboard.
-        </p>
+        <h2>سياسة الخصوصية</h2>
+        <p><a href="./privacy.html">اقرأ سياسة الخصوصية</a></p>
       </div>
 
-      <div class="card">
-        <h2>App Store / Play Store reviewers</h2>
-        <p>
-          Reviewer credentials are provided in App Review Information for each app submission. Background
-          location in the Driver app is used only during an active trip and during the admin-defined work
-          schedule, as described in the review notes.
-        </p>
-      </div>
+      <section class="en" lang="en">
+        <div class="brand">RAKAZ</div>
+        <h1>Support</h1>
+        <p class="lead">Help for the Rakaz Parent and Rakaz Driver apps. You can contact us without signing in.</p>
 
-      <div class="card">
-        <h2>Company</h2>
-        <p>Rakaz school transport — parent and driver mobile apps.</p>
-        <p class="muted">Website admin: <a href="https://admin.rakaz.autos">admin.rakaz.autos</a></p>
-      </div>
-
-      <section class="ar" lang="ar">
-        <div class="brand">ركاز</div>
-        <h1>الدعم والمساعدة</h1>
-        <p class="lead">صفحة الدعم لتطبيقي ركاز (ولي الأمر) وركاز السائق.</p>
-
-        <div class="card">
-          <h2>كيف تتواصل معنا</h2>
+        <div class="card contact">
+          <h2>Contact</h2>
           <ul>
-            <li><strong>تطبيق ولي الأمر:</strong> من تبويب المساعدة يمكنك الاتصال أو واتساب أو إرسال طلب دعم.</li>
-            <li><strong>تطبيق السائق:</strong> من القائمة اختر الاتصال بالإدارة، أو اطلب من إدارة النقل إعادة تعيين كلمة المرور.</li>
-            <li><strong>سياسة الخصوصية:</strong> <a href="./privacy.html">privacy.html</a></li>
+            <li>Email: <a href="mailto:support@rakaz.autos">support@rakaz.autos</a></li>
+            <li id="phone-line-en" hidden>Phone: <a id="phone-link-en" href="tel:"></a></li>
+            <li id="whatsapp-line-en" hidden>WhatsApp: <a id="whatsapp-link-en" href="https://wa.me/" target="_blank" rel="noopener"></a></li>
           </ul>
+          <p class="muted">We reply on business days. Inside the Parent app, use the Help tab. Inside the Driver app, use Call Administration from the menu.</p>
         </div>
 
         <div class="card">
-          <h2>الحسابات</h2>
+          <h2>How to get an account</h2>
           <p>
-            لا يوجد تسجيل عام. حسابات أولياء الأمور والسائقين تصدرها إدارة النقل. إذا تعذّر الدخول، تواصل مع
-            إدارة النقل في مدرستك لطلب كلمة مرور جديدة من لوحة ركاز.
+            Anyone can download Rakaz Parent and Rakaz Driver. A parent account is created when a family enrolls a
+            child with a school transport service that uses Rakaz. To ask a question, request an account, or reset a
+            password, email
+            <a href="mailto:support@rakaz.autos">support@rakaz.autos</a>.
           </p>
+          <p>
+            To request an account or a password reset, email
+            <a href="mailto:support@rakaz.autos">support@rakaz.autos</a>
+            with your phone number and the student’s name.
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>Privacy policy</h2>
+          <p><a href="./privacy.html">Read the privacy policy</a></p>
         </div>
       </section>
 
-      <p class="footer">© 2026 Rakaz. Last updated: 13 Oct 2026.</p>
+      <p class="footer">© 2026 ركاز. آخر تحديث: 15 أكتوبر 2026.</p>
     </main>
+    <script>
+      const placeholders = new Set(['9647700000000', '07700000000', '7700000000']);
+      const digits = (value) => String(value || '').replace(/\D/g, '');
+      const usable = (value) => {
+        const d = digits(value);
+        return d.length >= 10 && !placeholders.has(d);
+      };
+      const show = (lineId, linkId, href, label) => {
+        const line = document.getElementById(lineId);
+        const link = document.getElementById(linkId);
+        if (!line || !link) return;
+        link.href = href;
+        link.textContent = label;
+        line.hidden = false;
+      };
+      fetch('https://api.rakaz.autos/api/v1/public/settings')
+        .then((response) => response.json())
+        .then((body) => {
+          const data = body && body.data ? body.data : {};
+          if (usable(data.adminPhone)) {
+            const label = data.adminPhone;
+            show('phone-line', 'phone-link', 'tel:' + digits(data.adminPhone), label);
+            show('phone-line-en', 'phone-link-en', 'tel:' + digits(data.adminPhone), label);
+          }
+          if (usable(data.whatsappNumber)) {
+            const label = data.whatsappNumber;
+            const href = 'https://wa.me/' + digits(data.whatsappNumber);
+            show('whatsapp-line', 'whatsapp-link', href, label);
+            show('whatsapp-line-en', 'whatsapp-link-en', href, label);
+          }
+        })
+        .catch(() => undefined);
+    </script>
   </body>
 </html>

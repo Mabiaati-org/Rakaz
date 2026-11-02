@@ -17,42 +17,58 @@
         margin: 0 auto;
         padding: 32px 20px 64px;
       }
-      h1 {
-        font-size: 1.8rem;
-        margin-bottom: 4px;
-      }
-      h2 {
-        font-size: 1.15rem;
-        margin-top: 32px;
-      }
-      .muted {
-        color: #6b7c8c;
-      }
-      .draft {
-        padding: 12px 16px;
-        border-radius: 12px;
-        background: #f8ebe0;
-        color: #9a5a1a;
-      }
-      li {
-        margin-bottom: 6px;
+      h1 { font-size: 1.8rem; margin-bottom: 4px; }
+      h2 { font-size: 1.15rem; margin-top: 32px; }
+      .muted { color: #6b7c8c; }
+      a { color: #071d36; font-weight: 600; }
+      li { margin-bottom: 6px; }
+      .en {
+        direction: ltr;
+        text-align: left;
+        font-family: 'IBM Plex Sans', 'Segoe UI', Tahoma, sans-serif;
+        margin-top: 40px;
+        padding-top: 8px;
+        border-top: 1px solid #e2e6e3;
       }
     </style>
   </head>
   <body>
     <main>
       <h1>سياسة الخصوصية</h1>
-      <p class="muted">تطبيقا «ركاز» و«ركاز السائق» — آخر تحديث: [ضع التاريخ]</p>
+      <p class="muted">آخر تحديث: 2 نوفمبر 2026</p>
 
-      <p class="draft">
-        مسودة أولية كتبها فريق التطوير لتصف ما يفعله النظام فعلاً. يجب أن تراجعها الإدارة ومستشار قانوني وتستكمل
-        الحقول بين الأقواس [ ] قبل النشر، ثم يُحذف هذا التنبيه.
+      <h2>التطبيق والمطوّر</h2>
+      <p>
+        تنطبق هذه السياسة على التطبيقين المنشورين في Google Play تحت حساب المطوّر الظاهر في بطاقة المتجر، بالاسم
+        ومعرّف الحزمة التاليين:
+      </p>
+      <ul>
+        <li>
+          <strong>اسم التطبيق:</strong> ركاز (تطبيق ولي الأمر).<br />
+          <strong>اسم الحزمة:</strong> <span dir="ltr">com.alsultan.rikaz</span>
+        </li>
+        <li>
+          <strong>اسم التطبيق:</strong> ركاز السائق.<br />
+          <strong>اسم الحزمة:</strong> <span dir="ltr">com.alsultan.rikaz.driver</span>
+        </li>
+      </ul>
+      <p>
+        <strong>اسم المطوّر على Google Play:</strong> <span dir="ltr">Wattan Al-Sultan</span>.<br />
+        <strong>بريد المطوّر في المتجر:</strong>
+        <a href="mailto:developer@alsultan.dev">developer@alsultan.dev</a>.<br />
+        <strong>الكيان المشغّل للخدمة:</strong> Wattan Al-Sultan — خدمة ركاز للنقل المدرسي، النطاق
+        <a href="https://rakaz.autos">rakaz.autos</a>.<br />
+        <strong>الدعم وحذف البيانات:</strong>
+        <a href="mailto:support@rakaz.autos">support@rakaz.autos</a>
+        أو
+        <a href="mailto:developer@alsultan.dev">developer@alsultan.dev</a>
+        أو من <a href="./support.html">صفحة الدعم</a>.
       </p>
 
       <h2>من نحن</h2>
       <p>
-        تُشغّل خدمة ركاز للنقل المدرسي [اسم الشركة المسجّل]، وعنوانها [العنوان]. للتواصل بخصوص هذه السياسة:
-        [البريد الإلكتروني] — [رقم الهاتف].
+        Wattan Al-Sultan هي الجهة الناشرة للتطبيقين أعلاه على Google Play، وتُشغّل خدمة ركاز للنقل المدرسي عبر
+        النطاق rakaz.autos. التطبيقان مخصّصان لأولياء الأمور والسائقين الذين يستخدمون الخدمة.
       </p>
 
       <h2>البيانات التي نجمعها</h2>
@@ -93,18 +109,21 @@
       <ul>
         <li><strong>ولي الأمر:</strong> بيانات أبنائه فقط، وموقع الحافلة أثناء رحلتهم.</li>
         <li><strong>السائق:</strong> طلاب مساره فقط: الاسم، الصف، عنوان المنزل، واسم ورقم هاتف ولي الأمر.</li>
-        <li><strong>إدارة النقل:</strong> كل بيانات الخدمة.</li>
+        <li><strong>إدارة النقل:</strong> بيانات الخدمة اللازمة لتشغيل المسارات.</li>
         <li>
-          <strong>مزوّدو الخدمة:</strong> مزوّد الاستضافة [اسم المزوّد والبلد]، وخدمات الإشعارات (Expo و Apple و
-          Google) التي تستلم نص الإشعار ومعرّف الجهاز لإيصاله، وخدمة خرائط OpenStreetMap التي تستلم إحداثيات فقط
-          (بلا أسماء أو أرقام هواتف) لعرض الخريطة وتحويل موقع السائق إلى عنوان.
+          <strong>مزوّدو الخدمة:</strong> الاستضافة على Google Cloud. خدمات الإشعارات (Expo و Apple و Google) تستلم
+          نص الإشعار ومعرّف الجهاز لإيصاله. خدمة خرائط OpenStreetMap تستلم إحداثيات فقط (بلا أسماء أو أرقام هواتف)
+          لعرض الخريطة وتحويل موقع السائق إلى عنوان.
         </li>
       </ul>
 
       <h2>مدة الاحتفاظ</h2>
       <ul>
         <li>مواقع الحافلات التفصيلية تُحذف تلقائياً بعد ٣٠ يوماً، وسجل مواقع السائقين كل ٥ دقائق بعد ٩٠ يوماً.</li>
-        <li>سجلات الرحلات والاشتراكات تُحفظ [المدة] لأغراض السلامة والمحاسبة.</li>
+        <li>
+          سجلات الرحلات والاشتراكات تبقى طوال مدة استخدام الخدمة لأغراض السلامة والمحاسبة، ويمكن طلب حذفها عبر
+          <a href="mailto:support@rakaz.autos">support@rakaz.autos</a>.
+        </li>
       </ul>
 
       <h2>حذف الحساب والبيانات</h2>
@@ -112,7 +131,7 @@
         يمكنك حذف حسابك في أي وقت من داخل التطبيق: في تطبيق ولي الأمر من «العائلة ← حذف الحساب»، وفي تطبيق السائق من
         «القائمة ← حذف الحساب». عند الحذف يُمحى الحساب والإشعارات وطلبات الدعم ومعرّفات الأجهزة فوراً، ويُفك ارتباط
         الحساب ببيانات الطلاب. تبقى سجلات الطلاب والرحلات لدى إدارة النقل للمدة المذكورة أعلاه، ويمكن طلب حذفها
-        بالتواصل معنا على [البريد الإلكتروني].
+        بالتواصل معنا على <a href="mailto:support@rakaz.autos">support@rakaz.autos</a>.
       </p>
 
       <h2>حماية البيانات</h2>
@@ -129,6 +148,24 @@
 
       <h2>تغيير هذه السياسة</h2>
       <p>سننشر أي تعديل في هذه الصفحة مع تحديث التاريخ أعلاه، ونُشعر المستخدمين بالتغييرات المهمة عبر التطبيق.</p>
+
+      <section class="en" lang="en">
+        <h2>English summary</h2>
+        <p>
+          This policy covers the Google Play apps published by developer
+          <strong>Wattan Al-Sultan</strong> (store contact
+          <a href="mailto:developer@alsultan.dev">developer@alsultan.dev</a>):
+          ركاز (package <span dir="ltr">com.alsultan.rikaz</span>) and ركاز السائق (package
+          <span dir="ltr">com.alsultan.rikaz.driver</span>), operated at rakaz.autos.
+          We collect account details, student and trip records, bus location during a trip, and support messages.
+          We do not sell data or use it for advertising. Parents and drivers can delete an account inside the app.
+          For support or a deletion request, email
+          <a href="mailto:support@rakaz.autos">support@rakaz.autos</a>
+          or
+          <a href="mailto:developer@alsultan.dev">developer@alsultan.dev</a>,
+          or visit the <a href="./support.html">support page</a>.
+        </p>
+      </section>
     </main>
   </body>
 </html>
